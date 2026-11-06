@@ -20,7 +20,8 @@ th, td { text-align: left; padding: .6rem .75rem; border-bottom: 1px solid var(-
 th { font-weight: 600; color: var(--muted); font-size: .9rem; }
 .table-wrap { overflow-x: auto; }
 label { display: block; font-weight: 600; margin: .75rem 0 .25rem; }
-input, select { width: 100%; padding: .55rem .65rem; border: 1px solid #b9c0b8; border-radius: 4px; font: inherit; background: #fff; }
+input, select, textarea { width: 100%; padding: .55rem .65rem; border: 1px solid #b9c0b8; border-radius: 4px; font: inherit; background: #fff; }
+textarea { resize: vertical; }
 button, .btn { background: var(--accent); color: var(--accent-ink); border: 0; padding: .55rem 1rem;
   border-radius: 4px; font: inherit; font-weight: 600; cursor: pointer; }
 button.quiet { background: transparent; color: var(--accent); border: 1px solid var(--line); }
@@ -29,3 +30,18 @@ button.quiet { background: transparent; color: var(--accent); border: 1px solid 
 .tag { display: inline-block; padding: 0 .5rem; border: 1px solid var(--line); border-radius: 99px; font-size: .85rem; margin: 0 .25rem .25rem 0; }
 .login { max-width: 24rem; margin: 10vh auto; }
 @media (prefers-reduced-motion: no-preference) { button { transition: filter .15s; } button:hover { filter: brightness(1.1); } }
+
+.btn { display: inline-block; text-decoration: none; }
+.okmsg { color: var(--accent); margin: .75rem 0; }
+.muted { color: var(--muted); font-size: .9rem; }
+.empty { color: var(--muted); padding: .75rem 0; }
+.overdue { color: var(--warn); font-weight: 600; }
+.filters { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); align-items: end; margin-bottom: 1rem; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1.25rem; margin: 0; }
+.facts dt { color: var(--muted); } .facts dd { margin: 0; }
+.desc { white-space: pre-wrap; margin: .5rem 0 0; }
+.thread { list-style: none; padding: 0; margin: 0 0 1rem; }
+.thread li { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .6rem .9rem; margin-bottom: .5rem; }
+.thread li.unread { border-left: 4px solid var(--accent); }
+.tag.st-blocked, .tag.pr-urgent { border-color: var(--warn); color: var(--warn); }
+.pager { margin-top: 1rem; }

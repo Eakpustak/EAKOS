@@ -4,8 +4,8 @@
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
 - Last updated: 2026-11-06
-- Status: Phase 0 decisions made; Phase 1 foundation scaffolded (UNVERIFIED build, see below).
-- Current milestone: Phase 1 — identity and organization.
+- Status: Phase 1 scaffolded and Phase 2 (tasks) written; NOTHING build-verified yet (see section 10).
+- Current milestone: Phase 2 — tasks and personal workspace (code written, unverified).
 
 ## 1. Product identity
 
@@ -110,3 +110,18 @@ When ending a development session, update:
 
 - NOT yet run: `docker compose build`, `tsc --noEmit`, `next build`. The authoring sandbox had no network access.
 - Next action: run `./install.sh` on the VM (or locally), fix any build errors, then confirm login, directory, and admin user creation work.
+
+## 11. Phase 2 — tasks (written 2026-11-07, UNVERIFIED)
+
+Added: models Task/TaskComment/TaskEvent/Notification + migration `20261107000000_tasks` (hand-written; verify with `prisma migrate diff`).
+Pages: `/` (My work), `/tasks` (filters, pagination), `/tasks/new`, `/tasks/[id]`, `/notifications`. Logic: `lib/tasks.ts` (access policy, date helpers), `app/tasks/actions.ts`.
+
+Decisions:
+- Task access = creator, assignee, or head of the task's department. Admin role and plain membership grant nothing (RULES 2.3/2.7).
+- Create is retry-safe via unique `clientToken`; status/reassign use an optimistic guard (`updateMany` on the previously-read value) and report STALE instead of overwriting.
+- Errors/success are server-side redirects with `?error=` / `?ok=` (no optimistic UI). Form input is NOT preserved on validation error yet.
+- Due dates are date-only (midnight UTC), "today" computed in `APP_TZ` (default Asia/Kolkata).
+- Notifications are generic text (no task title) per RULES 3; opening a task marks its notifications read.
+
+Not done / known gaps: @mentions, authorization tests (none exist for any phase), preserving form input on error, creator-only edit of title/description/due date, admin user-actions still fail silently, Next 14.2.15 needs a security bump (CVE-2025-29927), no package-lock.json.
+Next action: install deps, run `npm run lint`, `npm run build`, `prisma migrate diff`, fix errors; then add tests for task access (cross-user and cross-department ID tampering).

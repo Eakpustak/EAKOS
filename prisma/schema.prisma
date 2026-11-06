@@ -33,6 +33,11 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   memberships  DepartmentMembership[]
+  tasksCreated  Task[]        @relation("TaskCreator")
+  tasksAssigned Task[]        @relation("TaskAssignee")
+  taskComments  TaskComment[]
+  taskEvents    TaskEvent[]
+  notifications Notification[]
 }
 
 model Department {
@@ -41,6 +46,7 @@ model Department {
   slug        String   @unique
   createdAt   DateTime @default(now())
   memberships DepartmentMembership[]
+  tasks       Task[]
 }
 
 model DepartmentMembership {
@@ -68,4 +74,86 @@ model AuditEvent {
 
   @@index([createdAt])
   @@index([resourceType, resourceId])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Task {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  status       TaskStatus   @default(TODO)
+  priority     TaskPriority @default(NORMAL)
+  dueAt        DateTime?
+  creatorId    String
+  assigneeId   String
+  departmentId String?
+  clientToken  String?      @unique
+  completedAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  creator      User         @relation("TaskCreator", fields: [creatorId], references: [id])
+  assignee     User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  comments     TaskComment[]
+  events       TaskEvent[]
+  notifications Notification[]
+
+  @@index([assigneeId, status])
+  @@index([creatorId])
+  @@index([departmentId])
+  @@index([dueAt])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id])
+
+  @@index([taskId, createdAt])
+}
+
+model TaskEvent {
+  id        String   @id @default(cuid())
+  taskId    String
+  actorId   String
+  type      String
+  detail    Json?
+  createdAt DateTime @default(now())
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor     User     @relation(fields: [actorId], references: [id])
+
+  @@index([taskId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  taskId    String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task      Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }

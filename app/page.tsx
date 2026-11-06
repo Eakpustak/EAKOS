@@ -1,27 +1,44 @@
 import { Shell } from "@/lib/shell";
 import { requireUser } from "@/lib/auth";
+import { db } from "@/lib/db";
 
-export default async function Home() {
-  const user = await requireUser();
+export const dynamic = "force-dynamic";
+
+export default async function Directory() {
+  await requireUser();
+  // Only directory-safe fields are selected: no hashes, no status internals.
+  const people = await db.user.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: { displayName: "asc" },
+    select: {
+      id: true, displayName: true, email: true,
+      memberships: { select: { department: { select: { name: true } }, type: true } },
+    },
+  });
   return (
     <Shell>
-      <h1>Welcome, {user.displayName}</h1>
-      <p className="sub">
-        Your work, handovers and company updates will appear here as the next phases are added.
-      </p>
-      <h2>Your departments</h2>
-      {user.memberships.length === 0 ? (
-        <p>You are not in a department yet. Ask an administrator to add you.</p>
-      ) : (
-        <div className="grid">
-          {user.memberships.map((m) => (
-            <div className="panel" key={m.id}>
-              <strong>{m.department.name}</strong>
-              <div>{m.type === "HEAD" ? "Department head" : "Member"}{m.isPrimary ? " · primary" : ""}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      <h1>Directory</h1>
+      <p className="sub">Active people and the departments they belong to.</p>
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Departments</th></tr></thead>
+          <tbody>
+            {people.map((p) => (
+              <tr key={p.id}>
+                <td>{p.displayName}</td>
+                <td>{p.email}</td>
+                <td>
+                  {p.memberships.length === 0 ? "—" : p.memberships.map((m) => (
+                    <span className="tag" key={m.department.name}>
+                      {m.department.name}{m.type === "HEAD" ? " (head)" : ""}
+                    </span>
+                  ))}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Shell>
   );
 }
