@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DEACTIVATED
+}
+
+enum SystemRole {
+  ADMIN
+  MEMBER
+}
+
+enum MembershipType {
+  HEAD
+  MEMBER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  displayName  String
+  passwordHash String?
+  status       UserStatus @default(ACTIVE)
+  systemRole   SystemRole @default(MEMBER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  memberships  DepartmentMembership[]
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  memberships DepartmentMembership[]
+}
+
+model DepartmentMembership {
+  id           String         @id @default(cuid())
+  userId       String
+  departmentId String
+  type         MembershipType @default(MEMBER)
+  isPrimary    Boolean        @default(false)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department     @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+  @@index([departmentId])
+}
+
+model AuditEvent {
+  id           String   @id @default(cuid())
+  actorUserId  String?
+  action       String
+  resourceType String
+  resourceId   String?
+  outcome      String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([resourceType, resourceId])
+}

@@ -4,8 +4,8 @@
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
 - Last updated: 2026-11-06
-- Status: Specification baseline drafted; implementation repository not yet inspected in this work.
-- Current milestone: Phase 0 — discovery and validation.
+- Status: Phase 0 decisions made; Phase 1 foundation scaffolded (UNVERIFIED build, see below).
+- Current milestone: Phase 1 — identity and organization.
 
 ## 1. Product identity
 
@@ -97,3 +97,16 @@ When ending a development session, update:
 
 ### Next action
 - One concrete next implementation step.
+
+## 9. Decisions (2026-11-06)
+
+- Stack: Next.js 14 (App Router) + TypeScript + Prisma 5 + PostgreSQL 16, one app container.
+- Auth: NextAuth v4 credentials + JWT; user status re-checked from DB on every request (`requireUser`). Bcrypt via `bcryptjs`.
+- Authorization (Phase 1 minimal): `systemRole` ADMIN/MEMBER only. Full scoped RBAC from ARCHITECTURE.md still to do.
+- Deployment: Docker Compose on OCI Ampere A1 (arm64) VM; Caddy auto-HTTPS; nightly pg_dump; `install.sh` / `update.sh` / `restore.sh`.
+- Migrations run on container start via `prisma migrate deploy`. Initial migration was hand-written to match `schema.prisma`; verify with `prisma migrate diff`.
+
+## 10. Verification status
+
+- NOT yet run: `docker compose build`, `tsc --noEmit`, `next build`. The authoring sandbox had no network access.
+- Next action: run `./install.sh` on the VM (or locally), fix any build errors, then confirm login, directory, and admin user creation work.

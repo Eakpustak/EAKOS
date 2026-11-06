@@ -46,4 +46,4 @@ Before making changes:
 
 ## Current status
 
-This repository is a specification starter pack. The existing application repository and stack have not yet been inspected. See `docs/MEMORY.md` for assumptions and decisions that still require confirmation.
+Phase 1 foundation (Next.js + Prisma + PostgreSQL) with Docker deployment. See [`DEPLOY.md`](DEPLOY.md) to install and update on a VM, and `docs/MEMORY.md` for decisions and verification status.
