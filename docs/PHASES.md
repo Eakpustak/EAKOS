@@ -145,6 +145,8 @@ Acceptance:
 
 > Status 2026-11-22: slice 4 written: internal service requests (MEMORY 28). Remaining: invoice/quotation register, renewal reminders. Nothing built or run against a database.
 
+> Status 2026-11-26: Phase 8 slice 2 written: incident records (MEMORY 32). Releases and SOPs not done.
+
 > Status 2026-11-25: Phase 8 slice 1 written: technical asset inventory (MEMORY 31). Releases, incidents and SOPs not done.
 
 > Status 2026-11-24: slice 6 written: renewals (MEMORY 30). All Phase 7 deliverables are now written; none built against the Prisma client.

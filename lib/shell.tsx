@@ -12,7 +12,7 @@ import { canViewVendors } from "./vendors";
 import { canViewRecords } from "./finance-records";
 import { attentionCount, canViewRenewals } from "./renewals";
 import { todayStr } from "./tasks";
-import { canViewAssets } from "./assets";
+import { canViewAssets, isTechHead } from "./assets";
 import { Avatar } from "./ui";
 
 export async function Shell({ children, allowPasswordChange }: { children: React.ReactNode; allowPasswordChange?: boolean }) {
@@ -24,6 +24,8 @@ export async function Shell({ children, allowPasswordChange }: { children: React
   // No scheduler yet: the sidebar count is computed here, only for people who may read renewals.
   const renewalRows = canViewRenewals(user) ? await db.renewal.findMany({ where: { status: "ACTIVE" }, select: { status: true, renewalDate: true, reminderDays: true }, take: 500 }) : [];
   const renewalsAttention = attentionCount(renewalRows.map((r) => ({ status: r.status, renewalDate: r.renewalDate.toISOString().slice(0, 10), reminderDays: r.reminderDays })), todayStr());
+  // Technology only: unresolved incidents assigned to me, plus unassigned ones for the head.
+  const openIncidents = canViewAssets(user) ? await db.incident.count({ where: { status: { not: "RESOLVED" }, OR: [{ assigneeId: user.id }, ...(isTechHead(user) ? [{ assigneeId: null }] : [])] } }) : 0;
   const ownDocs = await db.employeeDocument.count({ where: { subjectId: user.id } });
   const primary = user.memberships.find((m) => m.isPrimary) ?? user.memberships[0];
 
@@ -51,6 +53,7 @@ export async function Shell({ children, allowPasswordChange }: { children: React
           {canViewRecords(user) && <NavItem href="/invoices" label="Invoices & quotes" icon="invoices" />}
           {canViewRenewals(user) && <NavItem href="/renewals" label="Renewals" icon="renewals" count={renewalsAttention} countLabel="due soon or overdue" />}
           {canViewAssets(user) && <NavItem href="/assets" label="Technical assets" icon="assets" />}
+          {canViewAssets(user) && <NavItem href="/incidents" label="Incidents" icon="incidents" count={openIncidents} countLabel="need your attention" />}
           <NavItem href="/holidays" label="Holidays" icon="holidays" />
           {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}
           {(canManageCases(user) || openCaseItems > 0) && <NavItem href="/checklists" label="Checklists" icon="checklists" count={openCaseItems} countLabel="assigned to you" />}

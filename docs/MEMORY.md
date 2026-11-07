@@ -3,9 +3,9 @@
 
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
-- Last updated: 2026-11-25
+- Last updated: 2026-11-26
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 8 slice 1 (technical assets, section 31) on top of Phase 7 slice 6 (renewals, section 30; completes Phase 7 as written) on top of slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 8 slice 2 (incidents, section 32) on top of slice 1 (technical assets, section 31) on top of Phase 7 slice 6 (renewals, section 30; completes Phase 7 as written) on top of slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -664,3 +664,28 @@ Scope: PHASES 8 "Technical asset inventory". NOT in this slice (rest of Phase 8)
 **Risks to check first with a toolchain:** `memberships: { some: { department: { slug } } }` owner filter; `AssetFields` receives either a stored row or query-string values; the secret heuristic may flag legitimate notes (tune from real use).
 
 **Next action:** build and click through: Technology head adds "Prod API" (Server, Production); a note with `password: hunter2` is refused; a Technology member sees it read-only; a Sales member is redirected from `/assets`; stale save is refused; retire and reactivate. Then Phase 8 slice 2 (deployment/release records) or incident records.
+
+## 32. Phase 8 slice 2 — Incident records (2026-11-26, WRITTEN, NOT BUILT, MIGRATION RUN ON REAL POSTGRES)
+
+Scope: PHASES 8 "Incident records"; acceptance "incident history is traceable". NOT in this slice (rest of Phase 8): deployment/release records, technical SOPs, GitHub integration. Also not done: severity change after reporting (add a note), SLA timers, notifications or escalation (no scheduler), post-incident review template, linking an incident to a release.
+
+**Added**
+- Models `Incident`, `IncidentEvent` (append-only), enums `IncidentSeverity` (LOW..CRITICAL), `IncidentStatus` (OPEN, INVESTIGATING, MITIGATED, RESOLVED), migration `20261124000000_incidents`. DB CHECKs: title 3..120 and non-empty description; INVESTIGATING/MITIGATED need an assignee; RESOLVED carries resolvedAt and a non-empty resolution note, every other status carries no resolvedAt. Asset FK RESTRICT.
+- `lib/incidents.ts` (pure rules), `lib/incident-ui.tsx`, `app/incidents/actions.ts` (`reportIncident`, `actOnIncident`, `assignIncident`), pages `/incidents` (Open / Assigned to me / Resolved / All, pagination), `/incidents/new`, `/incidents/[id]`, nav item "Incidents" with a count of unresolved incidents assigned to you (plus unassigned ones for the head).
+- Tests: `tests/incidents.test.ts` (6). `npm test` total 194.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Read, report and add notes: any Technology member. Assign and reopen: the Technology head. Start, mitigate, resolve: the head or the current assignee. Everyone else (Management heads, Administrator role, other departments) is redirected.
+- Flow: OPEN -> INVESTIGATING (needs an assignee) -> MITIGATED (note) -> RESOLVED (note, kept as the resolution); INVESTIGATING may resolve directly; RESOLVED -> INVESTIGATING only by the head with a reason. Nothing is deleted. Every report, assignment, transition and note is an `IncidentEvent` plus an `AuditEvent`. Status writes are guarded on the status read; a stale click changes nothing. Create is retry-safe via `clientToken`.
+- Secrets: title, description and every note go through the asset inventory's `findSecret`. On a refused report the description is not echoed into the query string.
+- The affected asset must be ACTIVE at report time.
+
+**Verification (actual results)**
+- `npm test`: 194/194 pass.
+- All 20 migrations applied in order to a real PostgreSQL 16; a valid report -> investigate -> resolve sequence and an event row were accepted, and 6 bad statements were rejected (2-character title, blank description, unknown severity, MITIGATED without assignee, blank resolution note, OPEN carrying resolvedAt).
+- `tsc --noEmit`: only errors caused by the ungenerated Prisma client.
+- NOT run: `prisma generate` (engine host 403), `next build`, `prisma migrate diff`, any browser or database-backed page.
+
+**Risks to check first with a toolchain:** the sidebar count's `OR` with a conditional spread; `Prisma.IncidentUncheckedUpdateManyInput` typing with nullable resolution fields; `textForm` renders several forms with distinct textarea ids on one page.
+
+**Next action:** build and click through: a Technology member reports an incident; a note containing `password: x` is refused; the head assigns Alice; Alice starts, mitigates, resolves with a note and sees the duration; Bob (not assigned) can only add notes; the head reopens; a Sales member and the Administrator are redirected from `/incidents`. Then Phase 8 slice 3 (deployment/release records) or SOPs.
