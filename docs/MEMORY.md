@@ -5,7 +5,7 @@
 
 - Last updated: 2026-11-26
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 8 slice 2 (incidents, section 32) on top of slice 1 (technical assets, section 31) on top of Phase 7 slice 6 (renewals, section 30; completes Phase 7 as written) on top of slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 8 slice 3 (releases, section 33) on top of slice 2 (incidents, section 32) on top of slice 1 (technical assets, section 31) on top of Phase 7 slice 6 (renewals, section 30; completes Phase 7 as written) on top of slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -689,3 +689,30 @@ Scope: PHASES 8 "Incident records"; acceptance "incident history is traceable". 
 **Risks to check first with a toolchain:** the sidebar count's `OR` with a conditional spread; `Prisma.IncidentUncheckedUpdateManyInput` typing with nullable resolution fields; `textForm` renders several forms with distinct textarea ids on one page.
 
 **Next action:** build and click through: a Technology member reports an incident; a note containing `password: x` is refused; the head assigns Alice; Alice starts, mitigates, resolves with a note and sees the duration; Bob (not assigned) can only add notes; the head reopens; a Sales member and the Administrator are redirected from `/incidents`. Then Phase 8 slice 3 (deployment/release records) or SOPs.
+
+## 33. Phase 8 slice 3 — Deployment/release records (2026-11-27, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+Scope: PHASES 8 "Deployment/release records". GitHub stays the source of truth for code (only a commit id and a link are kept). This app deploys nothing; it records what people say they did. NOT in this slice (rest of Phase 8): technical SOPs, GitHub integration beyond a link. Also not done: linking a release to an incident, a "releases" tab on the asset page, a four-eyes rule for Production, editing a record (add a note, or plan a new one), scheduled/notified releases (no scheduler).
+
+**Added**
+- Models `Release`, `ReleaseEvent` (append-only), enum `ReleaseStatus` (PLANNED, DEPLOYED, FAILED, ROLLED_BACK, CANCELLED), migration `20261125000000_releases`. DB CHECKs: version 1..60 chars and non-empty summary; environment allowlist; commit id `^[0-9a-f]{7,40}$`; link starts http(s)://; DEPLOYED/ROLLED_BACK carry deployedAt+deployerId and PLANNED/FAILED/CANCELLED carry neither; FAILED/CANCELLED/ROLLED_BACK carry a non-empty note. Asset FK RESTRICT (assets are never deleted).
+- `lib/releases.ts` (pure rules), `lib/release-ui.tsx`, `app/releases/actions.ts` (`createRelease`, `actOnRelease`), pages `/releases` (Planned / Deployed / Failed or rolled back / All, pagination), `/releases/new`, `/releases/[id]`, nav item "Releases" (Technology members only).
+- Tests: `tests/releases.test.ts` (6). `npm test` total 200.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Read, plan and add notes: any Technology member. Record an outcome (deploy, fail, cancel, roll back): the Technology head or the person who created the record. Everyone else, including Management heads and the Administrator role, is redirected (RULES 2.3, 2.7).
+- Flow: PLANNED -> DEPLOYED | FAILED | CANCELLED; DEPLOYED -> ROLLED_BACK. FAILED, CANCELLED and ROLLED_BACK are final; a fix is a new record. Fail, cancel and roll back need a note; deploy may have one.
+- Environment is looked up from the asset on the server and copied into the record (not taken from the form), so history survives asset edits. Only ACTIVE assets can be released.
+- Secrets: version, summary, link and every note go through `findSecret`. On a refused create the summary is not echoed back into the query string. Link re-validated with `safeHttpUrl` at render, opened with `rel="noopener noreferrer nofollow"`.
+- Status writes are guarded on the status read (`updateMany`), so a stale click changes nothing. Create is retry-safe via `clientToken`. Missing and forbidden IDs get the same redirect. Every plan and transition writes a `ReleaseEvent` and an `AuditEvent`.
+
+**Verification (actual results)**
+- `tsx --test tests/*.test.ts`: 200/200 pass (194 existing + 6 new). Five mutations (any member may record outcomes; rollback allowed from PLANNED; fail without a note; no secret check on version/summary; deploy allowed from FAILED) each fail a test.
+- `lib/releases.ts` type-checks under `tsc --strict`; the only errors are the missing `@prisma/client` in OTHER files it imports. Syntax-only parse of every new/changed `.ts`/`.tsx` file: clean. Model columns vs migration columns cross-checked by script (15 + 8, nullability matches).
+- NOT run: `npm ci`, `prisma generate`, project `tsc --noEmit`, `next build`, `prisma migrate` (no PostgreSQL in this sandbox, so the migration SQL and its CHECKs have never been executed), any browser or database. The `.tsx` pages and server actions have never been compiled.
+
+**Risks to check first with a toolchain**
+- Migration SQL syntax and the CHECKs (apply all 21 migrations in order to a scratch PostgreSQL 16, then `prisma migrate diff`).
+- `Prisma.ReleaseUncheckedUpdateManyInput` typing (same pattern as incidents); `asset!.environment` after a `fail()` that returns `never`.
+
+**Next action:** build and apply migrations, then click through: a Technology member plans "v1.4.2" for an active asset and the environment matches the asset; a second Technology member can only add notes; the creator records it as deployed and the history shows who and when; roll back needs a note; a failed record is frozen; a note containing `password: x` is refused; a Sales member and the Administrator are redirected from `/releases`. Then Phase 8 slice 4 (technical SOPs) or the Phase 9 hardening pass.

@@ -83,6 +83,9 @@ model User {
   incidentsReported Incident[]             @relation("IncidentReporter")
   incidentsAssigned Incident[]             @relation("IncidentAssignee")
   incidentEvents    IncidentEvent[]
+  releasesCreated   Release[]              @relation("ReleaseCreator")
+  releasesDeployed  Release[]              @relation("ReleaseDeployer")
+  releaseEvents     ReleaseEvent[]
   serviceRequested  ServiceRequest[]      @relation("ServiceRequester")
   serviceAssigned   ServiceRequest[]      @relation("ServiceAssignee")
   serviceEvents     ServiceEvent[]
@@ -975,6 +978,7 @@ model TechAsset {
   updatedAt   DateTime    @updatedAt
   owner       User?       @relation("AssetOwner", fields: [ownerId], references: [id])
   incidents   Incident[]
+  releases    Release[]
   createdBy   User        @relation("AssetCreator", fields: [createdById], references: [id])
 
   @@index([status, assetType])
@@ -1033,4 +1037,55 @@ model IncidentEvent {
   actor      User           @relation(fields: [actorId], references: [id])
 
   @@index([incidentId, createdAt])
+}
+
+enum ReleaseStatus {
+  PLANNED
+  DEPLOYED
+  FAILED
+  ROLLED_BACK
+  CANCELLED
+}
+
+/// Deployment/release record for a technical asset. GitHub stays the source of truth for code: only a commit id and a link are kept. Never secrets.
+model Release {
+  id          String        @id @default(cuid())
+  version     String
+  summary     String
+  assetId     String
+  /// Copied from the asset when the record is created, so history survives later asset edits.
+  environment String
+  commitRef   String?
+  changeUrl   String?
+  status      ReleaseStatus @default(PLANNED)
+  creatorId   String
+  deployerId  String?
+  deployedAt  DateTime?
+  outcomeNote String?
+  clientToken String?       @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  asset       TechAsset     @relation(fields: [assetId], references: [id])
+  creator     User          @relation("ReleaseCreator", fields: [creatorId], references: [id])
+  deployer    User?         @relation("ReleaseDeployer", fields: [deployerId], references: [id])
+  events      ReleaseEvent[]
+
+  @@index([status, createdAt])
+  @@index([assetId, createdAt])
+  @@index([creatorId])
+}
+
+model ReleaseEvent {
+  id         String   @id @default(cuid())
+  releaseId  String
+  actorId    String
+  action     String
+  fromStatus String?
+  toStatus   String
+  comment    String?
+  createdAt  DateTime @default(now())
+  release    Release  @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([releaseId, createdAt])
 }
