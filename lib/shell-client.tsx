@@ -2,9 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ClipboardList, Handshake, LayoutDashboard, Megaphone, Menu, Users, UserCog, X } from "lucide-react";
+import { Bell, Briefcase, ClipboardList, Handshake, LayoutDashboard, Megaphone, Menu, Users, UserCog, X } from "lucide-react";
 
-const ICONS = { work: LayoutDashboard, tasks: ClipboardList, handovers: Handshake, hub: Megaphone, bell: Bell, people: Users, admin: UserCog } as const;
+const ICONS = { work: LayoutDashboard, tasks: ClipboardList, handovers: Handshake, hub: Megaphone, leads: Briefcase, bell: Bell, people: Users, admin: UserCog } as const;
 export type NavIcon = keyof typeof ICONS;
 
 export function NavItem({ href, label, icon, count, countLabel = "unread" }: { href: string; label: string; icon: NavIcon; count?: number; countLabel?: string }) {

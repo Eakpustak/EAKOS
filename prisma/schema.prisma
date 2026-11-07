@@ -44,6 +44,9 @@ model User {
   contentAuthored   ContentItem[]          @relation("ContentAuthor")
   contentPublished  ContentItem[]          @relation("ContentPublisher")
   contentVersions   ContentVersion[]
+  leadsOwned        Lead[]                 @relation("LeadOwner")
+  leadsCreated      Lead[]                 @relation("LeadCreator")
+  leadInteractions  LeadInteraction[]
 }
 
 model Department {
@@ -121,11 +124,14 @@ model Task {
   events        TaskEvent[]
   notifications Notification[]
   handovers     Handover[]
+  leadId        String?
+  lead          Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@index([assigneeId, status])
   @@index([creatorId])
   @@index([departmentId])
   @@index([dueAt])
+  @@index([leadId])
 }
 
 model TaskComment {
@@ -161,12 +167,14 @@ model Notification {
   taskId     String?
   handoverId String?
   contentId  String?
+  leadId     String?
   readAt     DateTime?
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   task       Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   handover   Handover? @relation(fields: [handoverId], references: [id], onDelete: Cascade)
   content    ContentItem? @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  lead       Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -302,4 +310,68 @@ model ContentVersion {
   editedBy    User        @relation(fields: [editedById], references: [id])
 
   @@unique([contentId, version])
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  PROPOSAL
+  WON
+  LOST
+}
+
+enum InteractionType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  /// System entries written by stage/owner actions, never from the manual log form.
+  STAGE
+  OWNER
+}
+
+/// A sales lead. One accountable owner at all times. Visible only to the owner, the creator and the
+/// Sales head (see lib/leads.ts). A LOST lead must carry a reason (CHECK in the migration).
+model Lead {
+  id               String            @id @default(cuid())
+  organizationName String
+  contactName      String
+  contactEmail     String?
+  contactPhone     String?
+  source           String
+  stage            LeadStage         @default(NEW)
+  ownerId          String
+  createdById      String
+  /// Date-only (midnight UTC), like task due dates.
+  nextFollowUpAt   DateTime?
+  lostReason       String?
+  closedAt         DateTime?
+  clientToken      String?           @unique
+  lastActivityAt   DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  owner            User              @relation("LeadOwner", fields: [ownerId], references: [id])
+  createdBy        User              @relation("LeadCreator", fields: [createdById], references: [id])
+  interactions     LeadInteraction[]
+  tasks            Task[]
+  notifications    Notification[]
+
+  @@index([ownerId, stage])
+  @@index([stage, nextFollowUpAt])
+  @@index([createdById])
+}
+
+model LeadInteraction {
+  id         String          @id @default(cuid())
+  leadId     String
+  actorId    String
+  type       InteractionType
+  summary    String
+  occurredAt DateTime        @default(now())
+  createdAt  DateTime        @default(now())
+  lead       Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  actor      User            @relation(fields: [actorId], references: [id])
+
+  @@index([leadId, occurredAt])
 }

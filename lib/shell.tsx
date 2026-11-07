@@ -3,6 +3,7 @@ import { requireUser } from "./auth";
 import { db } from "./db";
 import SignOutButton from "./signout";
 import { NavItem, ShellFrame } from "./shell-client";
+import { isSalesMember } from "./leads";
 import { Avatar } from "./ui";
 
 export async function Shell({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           <NavItem href="/tasks" label="Tasks" icon="tasks" />
           <NavItem href="/handovers" label="Handovers" icon="handovers" count={awaitingHandovers} countLabel="awaiting your response" />
           <NavItem href="/hub" label="Company hub" icon="hub" />
+          {isSalesMember(user) && <NavItem href="/leads" label="Leads" icon="leads" />}
           <NavItem href="/notifications" label="Notifications" icon="bell" count={unread} />
           <NavItem href="/directory" label="Directory" icon="people" />
         </div>

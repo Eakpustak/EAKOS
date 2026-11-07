@@ -3,9 +3,9 @@
 
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
-- Last updated: 2026-11-09
+- Last updated: 2026-11-10
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 4 — Company Hub and CMS (code written, rules unit-tested, NOT built or run; see section 15). Phase 3 detail in section 14.
+- Current milestone: Phase 5 slice 1 — Sales leads (code written, rules unit-tested, NOT built or run; see section 16). Phase 4 (hub) is section 15, Phase 3 section 14. Phases 4 and 5 are both unbuilt: build and verify them before adding more.
 
 ## 1. Product identity
 
@@ -218,3 +218,33 @@ Deliberately not done this slice (see Still open below): Next.js version bump, a
 - Rich text, attachments, scheduled publish, separate reviewer/approval step, audience by individual user or role, view of an old version's diff, DB-backed authorization tests, hub widget on the My work dashboard.
 
 **Next action:** on a machine with npm + Postgres: `npm ci && npm run lint && npm run build && npx prisma migrate deploy`, then click through: head of Sales drafts a Sales-only announcement; a Tech member must not see or open it (list, search, direct URL); publish; Sales intern sees it and gets a notification; edit creates v2 and history; unpublish hides it again; try a `javascript:` resource link (must be rejected).
+
+## 16. Phase 5 slice 1 — Sales leads (2026-11-10, WRITTEN, NOT BUILT)
+
+Scope: leads, ownership, pipeline, interaction timeline, follow-ups. NOT in this slice: projects and milestones, the Sales -> Technology delivery handover linked to a lead, management pipeline summaries.
+
+**Added**
+- Models `Lead`, `LeadInteraction`, enums `LeadStage`, `InteractionType`; `Task.leadId`, `Notification.leadId`; migration `20261110000000_leads` (hand-written). DB CHECKs: LOST needs a non-empty reason; `closedAt` is set exactly when stage is WON or LOST.
+- `lib/leads.ts` (pure rules), `app/leads/actions.ts` (`createLead`, `logInteraction`, `changeStage`, `setFollowUp`, `createFollowUpTask`, `reassignLead`), `lib/lead-ui.tsx`, pages `/leads`, `/leads/new`, `/leads/[id]`, "Leads" nav item (Sales members only), notification links.
+- Tests: `tests/leads.test.ts`, 19 tests (`npm test` total 69). A test found and fixed a prototype-key lookup in the stage label helper.
+
+**Decisions (not confirmed by stakeholders)**
+- Leads belong to department slug `sales-and-marketing`. Any Sales member creates leads; owner must be an active Sales member.
+- Visible to owner, creator and Sales head(s) only. Plain Sales membership and ADMIN grant nothing (RULES 1.3, 2.7). Leaving Sales removes access at once. Only owner or Sales head may change a lead; a creator who is no longer owner is read-only.
+- Pipeline: NEW -> CONTACTED -> QUALIFIED -> PROPOSAL -> WON; PROPOSAL may fall back to QUALIFIED; any open stage -> LOST with a required reason. WON is final. Only the Sales head can reopen LOST (to NEW). Stages cannot be skipped. Closing clears the follow-up date.
+- Email or phone is required; both validated. Source is one of a fixed list.
+- Follow-up: a date on the lead plus optional assigned task (`Task.leadId`, department = Sales, assignee must be an active Sales member). Creating a task moves the lead's date to the soonest. The list flags "overdue" and "no follow-up planned".
+- Every interaction, stage change, owner change and follow-up task is a timeline entry. Notifications are generic ("A lead was assigned to you").
+- Lead tasks follow normal task access (creator, assignee, Sales head); the lead page lists only tasks the viewer can already see.
+
+**Verification (actual results)**
+- `tsx --test tests/*.test.ts`: 69/69 pass (25 handover, 25 hub, 19 leads). `lib/leads.ts` and its tests type-check under `tsc --strict` against a stubbed `@prisma/client`. Syntax parse of all new files: clean.
+- NOT run: `npm ci`, `prisma generate`, project `tsc`, `next build`, `prisma migrate diff/deploy`, browser or database. No npm access this session.
+
+**Risks to check first with a toolchain**
+- `orderBy nextFollowUpAt {sort, nulls}`; `visibleLeadWhere` returning `{}` for the Sales head and `{ id: { in: [] } }` for non-Sales; migration vs schema (`migrate diff`); action behaviour when `back()` is reached inside `loadManageable`.
+
+**Not done / gaps**
+- Projects, milestones, Sales -> Technology handover from a lead (handover has no lead link yet), pipeline aggregates for management, lead import/export, duplicate-organisation detection, automatic reminders for overdue follow-ups (no scheduler), reassigning a lead's open follow-up tasks, DB-backed access tests.
+
+**Next action:** build and run phases 3-5 on a machine with npm + Postgres (`npm ci && npm run lint && npm run build && npx prisma migrate deploy`). Click through: Sales intern creates a lead; another intern must not see it (list, search, direct URL); Sales head sees it; Tech head must not; move through stages; LOST without reason must be refused; create a follow-up task; reassign; check timeline and notifications.

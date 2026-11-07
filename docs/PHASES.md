@@ -95,6 +95,8 @@ Acceptance:
 
 ## Phase 5 — Sales CRM and projects (P1)
 
+> Status 2026-11-10: slice 1 written (leads, ownership, pipeline, timeline, follow-ups; 19 rule tests). Projects, milestones and the lead-linked Sales to Technology handover are NOT done. Nothing built or run against a database. See `MEMORY.md` section 16.
+
 Deliverables:
 - Lead database and ownership.
 - Lead interaction timeline.

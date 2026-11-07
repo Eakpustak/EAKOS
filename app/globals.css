@@ -417,3 +417,15 @@ fieldset.audience legend { padding: 0 .35rem; font-size: .85rem; font-weight: 60
 details.ver { border-top: 1px solid var(--border); padding: .6rem 0; }
 details.ver summary { cursor: pointer; font-size: .88rem; color: var(--text-2); }
 details.ver .prose { margin-top: .6rem; }
+
+/* ---------- Leads ---------- */
+.badge.ld-new { color: var(--text-2); }
+.badge.ld-contacted { color: var(--info); background: var(--info-soft); border-color: transparent; }
+.badge.ld-qualified { color: var(--primary); background: var(--primary-soft); border-color: transparent; }
+.badge.ld-proposal { color: var(--warning); background: var(--warning-soft); border-color: transparent; }
+.badge.ld-won { color: var(--success); background: var(--success-soft); border-color: transparent; }
+.badge.ld-lost { color: var(--danger); background: var(--danger-soft); border-color: transparent; }
+.badge.ld-lost::before { border-radius: 1px; }
+.fu-overdue { color: var(--danger); font-weight: 600; }
+.fu-none { color: var(--warning); font-weight: 600; }
+.timeline .kind { display: inline-block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin-right: .4rem; }
