@@ -204,6 +204,8 @@ model Handover {
   receiverId        String
   dueAt             DateTime?
   linkedTaskId      String?
+  /// Source sales lead, when this is a delivery handover from Sales. Nullable; SET NULL keeps the handover if the lead row is ever removed.
+  leadId            String?
   clientToken       String?         @unique
   /// When the current acknowledgement request was (re)sent; resets after a clarification answer.
   sentAt            DateTime        @default(now())
@@ -217,6 +219,7 @@ model Handover {
   sender            User            @relation("HandoverSender", fields: [senderId], references: [id])
   receiver          User            @relation("HandoverReceiver", fields: [receiverId], references: [id])
   linkedTask        Task?           @relation(fields: [linkedTaskId], references: [id], onDelete: SetNull)
+  lead              Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
   events            HandoverEvent[]
   notifications     Notification[]
 
@@ -225,6 +228,7 @@ model Handover {
   @@index([fromDepartmentId])
   @@index([toDepartmentId])
   @@index([status, sentAt])
+  @@index([leadId])
 }
 
 model HandoverEvent {
@@ -355,6 +359,7 @@ model Lead {
   createdBy        User              @relation("LeadCreator", fields: [createdById], references: [id])
   interactions     LeadInteraction[]
   tasks            Task[]
+  handovers        Handover[]
   notifications    Notification[]
 
   @@index([ownerId, stage])

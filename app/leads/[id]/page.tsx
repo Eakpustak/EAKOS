@@ -11,8 +11,10 @@ import { Field, PageHeader, Person } from "@/lib/ui";
 import { fmtDate, fmtDateTime, todayStr, visibleTaskWhere, STATUS_LABEL, dueStr } from "@/lib/tasks";
 import {
   INTERACTION_LABEL, MANUAL_INTERACTIONS, MAX_REASON, MAX_SUMMARY, SALES_SLUG, STAGE_LABEL, allowedNextStages,
-  canAccessLead, canManageLead, isOpenStage, validEmail, validPhone,
+  canAccessLead, canHandOverLead, canManageLead, isOpenStage, validEmail, validPhone,
 } from "@/lib/leads";
+import { HandoverStatusBadge } from "@/lib/handover-ui";
+import { visibleHandoverWhere } from "@/lib/handovers";
 import { changeStage, createFollowUpTask, logInteraction, reassignLead, setFollowUp } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +39,8 @@ export default async function LeadDetail({
   const manage = canManageLead(user, lead);
   const open = isOpenStage(lead.stage);
   const nextStages = allowedNextStages(user, lead);
-  const [salesPeople, tasks] = await Promise.all([
+  const handable = canHandOverLead(user, lead);
+  const [salesPeople, tasks, handovers] = await Promise.all([
     manage && open
       ? db.user.findMany({
           where: { status: "ACTIVE", memberships: { some: { department: { slug: SALES_SLUG } } } },
@@ -49,6 +52,12 @@ export default async function LeadDetail({
       where: { AND: [{ leadId: lead.id }, visibleTaskWhere(user)] },
       orderBy: [{ dueAt: "asc" }], take: 20,
       select: { id: true, title: true, status: true, dueAt: true, assignee: { select: { displayName: true } } },
+    }),
+    // Delivery handovers from this lead that the viewer may already see (handover access rules still apply).
+    db.handover.findMany({
+      where: { AND: [{ leadId: lead.id }, visibleHandoverWhere(user)] },
+      orderBy: { createdAt: "desc" }, take: 20,
+      select: { id: true, title: true, status: true, receiver: { select: { displayName: true } }, toDepartment: { select: { name: true } } },
     }),
   ]);
   const today = todayStr();
@@ -93,6 +102,32 @@ export default async function LeadDetail({
               </dl>
             </div>
           </section>
+
+          {(handovers.length > 0 || handable) && (
+            <section className="card" aria-labelledby="ho-h">
+              <div className="card-head"><h2 id="ho-h">Delivery handover</h2></div>
+              <div className="card-body">
+                {handovers.length > 0 && (
+                  <ul className="list" style={{ margin: "-.5rem -1rem 0" }}>
+                    {handovers.map((h) => (
+                      <li key={h.id}>
+                        <div className="grow">
+                          <Link href={`/handovers/${h.id}`}>{h.title}</Link>
+                          <span className="sub-line muted">{h.receiver.displayName} · {h.toDepartment.name}</span>
+                        </div>
+                        <HandoverStatusBadge status={h.status} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {handable && (
+                  <p style={{ marginTop: handovers.length ? "1rem" : 0 }}>
+                    <Link className="btn" href={`/handovers/new?leadId=${lead.id}`}>Hand over for delivery</Link>
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
 
           {tasks.length > 0 && (
             <section className="card" aria-labelledby="tasks-h">

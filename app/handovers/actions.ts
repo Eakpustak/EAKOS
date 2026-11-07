@@ -6,6 +6,9 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { canAccessTask, parseDueDate, todayStr } from "@/lib/tasks";
+import {
+  SALES_SLUG, HANDOVER_TIMELINE_EVENTS, canAccessLead, canHandOverLead, handoverSentNote, handoverTimelineNote,
+} from "@/lib/leads";
 import { canAccessHandover, decide, MAX_TEXT, parseReceiverChoice, type HandoverAction } from "@/lib/handovers";
 
 /** Redirect back with a message. Never call inside try/catch (redirect throws). */
@@ -22,6 +25,7 @@ const createSchema = z.object({
   receiver: z.string().min(1, "Choose who should receive this"),
   dueAt: z.string().optional(),
   linkedTaskId: z.string().optional(),
+  leadId: z.string().optional(),
   clientToken: z.string().min(8).max(80),
 });
 
@@ -35,12 +39,13 @@ export async function createHandover(formData: FormData) {
     receiver: String(formData.get("receiver") ?? ""),
     dueAt: String(formData.get("dueAt") ?? "") || undefined,
     linkedTaskId: String(formData.get("linkedTaskId") ?? "") || undefined,
+    leadId: String(formData.get("leadId") ?? "") || undefined,
     clientToken: String(formData.get("clientToken") ?? ""),
   };
   const keep = {
     title: raw.title, context: raw.context, deliverable: raw.deliverable,
     fromDepartmentId: raw.fromDepartmentId, receiver: raw.receiver,
-    dueAt: raw.dueAt ?? "", linkedTaskId: raw.linkedTaskId ?? "", clientToken: raw.clientToken,
+    dueAt: raw.dueAt ?? "", linkedTaskId: raw.linkedTaskId ?? "", leadId: raw.leadId ?? "", clientToken: raw.clientToken,
   };
   const fail = (msg: string): never => back("/handovers/new", "error", msg, keep);
 
@@ -68,7 +73,7 @@ export async function createHandover(formData: FormData) {
   // Receiver must be an active member of the receiving department (never trust the posted IDs).
   const receiver = await db.user.findUnique({
     where: { id: receiverId },
-    select: { id: true, status: true, memberships: { where: { departmentId: toDepartmentId }, select: { id: true } } },
+    select: { id: true, displayName: true, status: true, memberships: { where: { departmentId: toDepartmentId }, select: { id: true } } },
   });
   if (!receiver || receiver.status !== "ACTIVE" || receiver.memberships.length === 0) {
     fail("The chosen receiver is not an active member of that department.");
@@ -89,6 +94,23 @@ export async function createHandover(formData: FormData) {
     linkedTaskId = task!.id;
   }
 
+  // Delivery handover from a lead: the sender must be able to manage that lead, the lead must be at a
+  // stage that can be handed over, and the handover must be sent on behalf of Sales. All checked here
+  // against stored data, never against what the form claims.
+  let lead: { id: string } | null = null;
+  let leadNote: string | null = null;
+  if (d.leadId) {
+    const l = await db.lead.findUnique({ where: { id: d.leadId } });
+    // Same reply for missing and forbidden so lead IDs cannot be probed.
+    if (!l || !canAccessLead(user, l)) fail("The linked lead could not be found.");
+    if (!canHandOverLead(user, l!)) fail("Only the lead's owner or the Sales head can hand it over, and only once it is qualified, at proposal or won.");
+    const fromDept = await db.department.findUnique({ where: { id: d.fromDepartmentId }, select: { slug: true } });
+    if (fromDept?.slug !== SALES_SLUG) fail("A handover linked to a lead must be sent on behalf of Sales.");
+    const toDept = await db.department.findUnique({ where: { id: toDepartmentId }, select: { name: true } });
+    lead = { id: l!.id };
+    leadNote = handoverSentNote(d.title, receiver!.displayName, toDept?.name ?? "another department");
+  }
+
   let handoverId: string;
   try {
     const h = await db.$transaction(async (tx) => {
@@ -96,9 +118,13 @@ export async function createHandover(formData: FormData) {
         data: {
           title: d.title, context: d.context, deliverable: d.deliverable,
           fromDepartmentId: d.fromDepartmentId, toDepartmentId, senderId: user.id, receiverId,
-          dueAt: due, linkedTaskId, clientToken: d.clientToken,
+          dueAt: due, linkedTaskId, leadId: lead?.id ?? null, clientToken: d.clientToken,
         },
       });
+      if (lead && leadNote) {
+        await tx.leadInteraction.create({ data: { leadId: lead.id, actorId: user.id, type: "NOTE", summary: leadNote } });
+        await tx.lead.update({ where: { id: lead.id }, data: { lastActivityAt: new Date() } });
+      }
       await tx.handoverEvent.create({
         data: { handoverId: created.id, actorId: user.id, type: "created", detail: { receiverId, toDepartmentId, fromDepartmentId: d.fromDepartmentId } },
       });
@@ -190,6 +216,14 @@ export async function actOnHandover(formData: FormData) {
       await tx.notification.create({
         data: { userId: notifyUserId, type: `handover.${dec.event}`, title: notify.title, handoverId: h.id },
       });
+      // Keep the sales timeline in step with the delivery outcome (the lead owner may not be the sender).
+      if (h.leadId && (HANDOVER_TIMELINE_EVENTS as readonly string[]).includes(dec.event)) {
+        const note = handoverTimelineNote(dec.event, h.title, user.displayName, dec.text);
+        if (note) {
+          await tx.leadInteraction.create({ data: { leadId: h.leadId, actorId: user.id, type: "NOTE", summary: note } });
+          await tx.lead.update({ where: { id: h.leadId }, data: { lastActivityAt: now } });
+        }
+      }
       await tx.auditEvent.create({
         data: { actorUserId: user.id, action: `handover.${dec.event}`, resourceType: "handover", resourceId: h.id, outcome: "success" },
       });

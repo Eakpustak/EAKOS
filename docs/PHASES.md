@@ -97,6 +97,8 @@ Acceptance:
 
 > Status 2026-11-10: slice 1 written (leads, ownership, pipeline, timeline, follow-ups; 19 rule tests). Projects, milestones and the lead-linked Sales to Technology handover are NOT done. Nothing built or run against a database. See `MEMORY.md` section 16.
 
+> Status 2026-11-11: slice 2 written: lead-linked Sales to delivery handover (see MEMORY 17). Projects and milestones are still NOT done.
+
 Deliverables:
 - Lead database and ownership.
 - Lead interaction timeline.

@@ -248,3 +248,32 @@ Scope: leads, ownership, pipeline, interaction timeline, follow-ups. NOT in this
 - Projects, milestones, Sales -> Technology handover from a lead (handover has no lead link yet), pipeline aggregates for management, lead import/export, duplicate-organisation detection, automatic reminders for overdue follow-ups (no scheduler), reassigning a lead's open follow-up tasks, DB-backed access tests.
 
 **Next action:** build and run phases 3-5 on a machine with npm + Postgres (`npm ci && npm run lint && npm run build && npx prisma migrate deploy`). Click through: Sales intern creates a lead; another intern must not see it (list, search, direct URL); Sales head sees it; Tech head must not; move through stages; LOST without reason must be refused; create a follow-up task; reassign; check timeline and notifications.
+
+
+## 17. Phase 5 slice 2 — Lead-linked delivery handover (2026-11-11, WRITTEN, BUILT, NOT RUN AGAINST A DB)
+
+Scope: WORKFLOWS 3 step 6 ("Sales creates a delivery handover") and step 10 (Sales sees the outcome). NOT in this slice: projects, milestones, auto-creating a project/tasks when Technology accepts (step 8), management pipeline summaries.
+
+**Added**
+- `Handover.leadId` (nullable, FK to `Lead`, ON DELETE SET NULL, indexed); migration `20261111000000_lead_handovers` (additive, hand-written).
+- `lib/leads.ts`: `HANDOVER_STAGES`, `canHandOverLead`, `buildLeadHandoverContext`, `handoverTimelineNote`, `handoverSentNote`, `HANDOVER_TIMELINE_EVENTS`.
+- `createHandover`: optional `leadId`. Server checks the lead is accessible and hand-over-able by the sender, the from-department is Sales (by slug), then writes the handover plus a lead timeline note in one transaction. `actOnHandover`: accepted / clarification / rejected / completed / cancelled are copied to the lead timeline in the same transaction.
+- UI: "Delivery handover" card on `/leads/[id]` (button + the handovers the viewer may already see); `/handovers/new?leadId=` prefills title and an editable context snapshot; handover page shows "Source lead" (link only if the viewer can open the lead).
+- Tests: `tests/lead-handovers.test.ts` (7). `npm test` total 76. Three mutations (any Sales member may hand over; all stages allowed; prototype-key lookup) each fail a test.
+
+**Decisions (not confirmed by stakeholders)**
+- Only the lead owner or Sales head can hand over, from QUALIFIED, PROPOSAL or WON. Multiple handovers per lead are allowed (no duplicate guard yet).
+- The receiver normally cannot open the lead (RULES 2.7), so lead facts are COPIED into the handover context (editable by the sender before sending). The lead link is shown only to people who may open the lead. A Tech receiver's reject reason / completion summary is copied into the Sales timeline by design.
+- Handover access rules are unchanged (sender, receiver, heads of both departments).
+
+**Verification (actual results)**
+- `npm ci`; `prisma generate --no-engine` (needs `PRISMA_SCHEMA_ENGINE_BINARY=/bin/true PRISMA_QUERY_ENGINE_LIBRARY=/bin/true` in this sandbox); `tsc --noEmit` clean; `next build` succeeds; `npm test` 76/76.
+- All six migrations applied in order to a real PostgreSQL 16; `Handover.leadId` nullable, FK is SET NULL.
+
+**NOT verified**
+- Server actions and pages have still never run against a Prisma query engine / database (engine download is blocked here). No browser run. `migrate diff` not run.
+
+**Not done / gaps**
+- Projects, milestones, project/task creation on accept, duplicate-handover warning, lead timeline entry for handover reassignment (reassignment itself is still not built), DB-backed authorization tests.
+
+**Next action:** on a machine with Prisma engines: `npx prisma migrate deploy`, then click through: Sales owner opens a WON lead -> Hand over for delivery -> Tech receiver accepts; confirm the lead timeline shows sent and accepted, a Tech member cannot open `/leads/<id>`, another Sales intern cannot hand the lead over, and a NEW lead redirects with an error.

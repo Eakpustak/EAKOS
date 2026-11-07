@@ -153,3 +153,59 @@ export function isSource(v: string): boolean {
 export function validOccurredAt(d: Date, now: Date = new Date()): boolean {
   return !Number.isNaN(d.getTime()) && d.getTime() <= now.getTime() + 5 * 60_000;
 }
+
+// ---- Delivery handover from a lead (WORKFLOWS 3, step 6) ---------------------------------------------------
+
+/**
+ * Stages from which Sales may hand a lead over for delivery. NEW/CONTACTED are too early to brief anyone
+ * and LOST is closed. QUALIFIED/PROPOSAL allow Technology to scope before the deal is signed; WON is the usual case.
+ */
+export const HANDOVER_STAGES: LeadStage[] = ["QUALIFIED", "PROPOSAL", "WON"];
+
+export function canHandOverLead(u: LeadViewer, l: LeadLike): boolean {
+  return canManageLead(u, l) && (HANDOVER_STAGES as string[]).includes(l.stage);
+}
+
+/**
+ * Starting text for the handover "Context" field. The receiver is usually NOT allowed to see the lead
+ * (RULES 2.7), so everything they need is copied into the handover itself as an editable snapshot.
+ * The sender can trim it before sending; nothing is shared that the sender did not see in the form.
+ */
+export function buildLeadHandoverContext(l: {
+  organizationName: string; contactName: string; contactEmail: string | null; contactPhone: string | null;
+  source: string; stage: string;
+}): string {
+  const lines = [
+    `Customer: ${l.organizationName}`,
+    `Contact: ${l.contactName}`,
+    ...(l.contactEmail ? [`Email: ${l.contactEmail}`] : []),
+    ...(l.contactPhone ? [`Phone: ${l.contactPhone}`] : []),
+    `Lead source: ${l.source}`,
+    `Sales stage: ${stageLabel(l.stage)}`,
+    "",
+    "What the customer asked for and what was agreed:",
+    "",
+  ];
+  return lines.join("\n");
+}
+
+/** Handover events that are copied onto the lead timeline so Sales sees the delivery outcome. */
+export const HANDOVER_TIMELINE_EVENTS = ["accepted", "clarification_requested", "rejected", "completed", "cancelled"] as const;
+
+const OUTCOME_VERB: Record<string, string> = {
+  accepted: "accepted", clarification_requested: "asked for clarification on", rejected: "rejected",
+  completed: "completed", cancelled: "cancelled",
+};
+
+/** One-line timeline note for a delivery handover event; null for events that should not appear. */
+export function handoverTimelineNote(event: string, title: string, actorName: string, text?: string | null): string | null {
+  if (!Object.prototype.hasOwnProperty.call(OUTCOME_VERB, event)) return null;
+  const base = `Delivery handover "${title}" — ${actorName} ${OUTCOME_VERB[event]} it.`;
+  const t = (text ?? "").trim();
+  const withText = t ? `${base} “${t}”` : base;
+  return withText.length > MAX_SUMMARY ? withText.slice(0, MAX_SUMMARY - 1) + "…" : withText;
+}
+
+export function handoverSentNote(title: string, receiverName: string, departmentName: string): string {
+  return `Delivery handover "${title}" sent to ${receiverName} (${departmentName}).`.slice(0, MAX_SUMMARY);
+}

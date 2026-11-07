@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { HandoverStatusBadge } from "@/lib/handover-ui";
 import { Flash } from "@/lib/task-ui";
 import { canAccessTask, fmtDate, fmtDateTime } from "@/lib/tasks";
+import { canAccessLead } from "@/lib/leads";
 import {
   MAX_TEXT, ackWindowHours, ageLabel, availableActions, canAccessHandover, isAckOverdue,
 } from "@/lib/handovers";
@@ -36,6 +37,7 @@ export default async function HandoverDetail({
       fromDepartment: { select: { name: true } },
       toDepartment: { select: { name: true } },
       linkedTask: { select: { id: true, title: true, creatorId: true, assigneeId: true, departmentId: true } },
+      lead: { select: { id: true, organizationName: true, ownerId: true, createdById: true, stage: true } },
       events: { orderBy: { createdAt: "desc" }, take: 100, include: { actor: { select: { displayName: true } } } },
     },
   });
@@ -56,6 +58,8 @@ export default async function HandoverDetail({
   };
   const latestClar = h.status === "CLARIFICATION_REQUESTED" ? reasonText("clarification_requested") : null;
   const rejection = h.status === "REJECTED" ? reasonText("rejected") : null;
+  // The source lead is only linked for people who may open it; everyone else just sees that one exists.
+  const leadVisible = !!h.lead && canAccessLead(user, h.lead);
   const taskVisible = !!h.linkedTask && canAccessTask(user, h.linkedTask);
 
   return (
@@ -198,6 +202,11 @@ export default async function HandoverDetail({
                 <div><dt>Sent</dt><dd className="num">{fmtDateTime(h.sentAt)}</dd></div>
                 {h.respondedAt && <div><dt>First response</dt><dd className="num">{fmtDateTime(h.respondedAt)}</dd></div>}
                 {h.completedAt && <div><dt>Completed</dt><dd className="num">{fmtDateTime(h.completedAt)}</dd></div>}
+                {h.lead && (
+                  <div><dt>Source lead</dt><dd>
+                    {leadVisible ? <Link href={`/leads/${h.lead.id}`}>{h.lead.organizationName}</Link> : <span className="muted">A sales lead (the details are in the context above)</span>}
+                  </dd></div>
+                )}
                 {h.linkedTask && (
                   <div><dt>Linked task</dt><dd>
                     {taskVisible ? <Link href={`/tasks/${h.linkedTask.id}`}>{h.linkedTask.title}</Link> : <span className="muted">A task you don’t have access to</span>}
