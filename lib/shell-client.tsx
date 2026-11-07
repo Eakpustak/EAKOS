@@ -2,9 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bell, Briefcase, ListChecks, FileText, Receipt, ShoppingCart, Store, CalendarCheck, CalendarDays, HeartHandshake, ClipboardList, FolderKanban, Handshake, LayoutDashboard, Megaphone, Menu, Settings, Users, UserCog, X } from "lucide-react";
+import { BarChart3, Bell, Briefcase, ListChecks, FileText, Receipt, ShoppingCart, LifeBuoy, Store, CalendarCheck, CalendarDays, HeartHandshake, ClipboardList, FolderKanban, Handshake, LayoutDashboard, Megaphone, Menu, Settings, Users, UserCog, X } from "lucide-react";
 
-const ICONS = { work: LayoutDashboard, tasks: ClipboardList, handovers: Handshake, hub: Megaphone, leads: Briefcase, projects: FolderKanban, holidays: CalendarCheck, hr: HeartHandshake, leave: CalendarDays, bell: Bell, people: Users, admin: UserCog, settings: Settings, pipeline: BarChart3, checklists: ListChecks, documents: FileText, expenses: Receipt, purchases: ShoppingCart, vendors: Store } as const;
+const ICONS = { work: LayoutDashboard, tasks: ClipboardList, handovers: Handshake, hub: Megaphone, leads: Briefcase, projects: FolderKanban, holidays: CalendarCheck, hr: HeartHandshake, leave: CalendarDays, bell: Bell, people: Users, admin: UserCog, settings: Settings, pipeline: BarChart3, checklists: ListChecks, documents: FileText, expenses: Receipt, purchases: ShoppingCart, service: LifeBuoy, vendors: Store } as const;
 export type NavIcon = keyof typeof ICONS;
 
 export function NavItem({ href, label, icon, count, countLabel = "unread" }: { href: string; label: string; icon: NavIcon; count?: number; countLabel?: string }) {

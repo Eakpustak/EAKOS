@@ -16,6 +16,7 @@ export async function Shell({ children, allowPasswordChange }: { children: React
   const unread = await db.notification.count({ where: { userId: user.id, readAt: null } });
   const awaitingHandovers = await db.handover.count({ where: { receiverId: user.id, status: "PENDING" } });
   const openCaseItems = await db.caseItem.count({ where: { ownerId: user.id, status: "OPEN", case: { status: "OPEN", subjectId: { not: user.id } } } });
+  const assignedService = await db.serviceRequest.count({ where: { assigneeId: user.id, requesterId: { not: user.id }, status: { in: ["OPEN", "IN_PROGRESS"] } } });
   const ownDocs = await db.employeeDocument.count({ where: { subjectId: user.id } });
   const primary = user.memberships.find((m) => m.isPrimary) ?? user.memberships[0];
 
@@ -38,6 +39,7 @@ export async function Shell({ children, allowPasswordChange }: { children: React
           <NavItem href="/leave" label="Leave" icon="leave" />
           <NavItem href="/expenses" label="Expenses" icon="expenses" />
           <NavItem href="/purchases" label="Purchases" icon="purchases" />
+          <NavItem href="/service-requests" label="Service requests" icon="service" count={assignedService} countLabel="assigned to you" />
           {canViewVendors(user) && <NavItem href="/vendors" label="Vendors" icon="vendors" />}
           <NavItem href="/holidays" label="Holidays" icon="holidays" />
           {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}

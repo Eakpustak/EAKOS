@@ -5,7 +5,7 @@
 
 - Last updated: 2026-11-16
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 7 slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 7 slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -558,3 +558,31 @@ Scope: PHASES 7 "Purchase requests and approvals"; references the vendor registe
 - `/purchases/[id]` includes `vendor: { select: { name: true } }`; confirm no other vendor column is ever selected there.
 
 **Next action:** build, apply all fourteen migrations, then click through: a Technology member requests an item; the Technology head approves; the Operations head sees it only after approval, picks a vendor, records an order reference; the requester confirms receipt and sees only the vendor name; the requester cannot approve or order; a second user opening `/purchases/<id>` is redirected; an inactive vendor is refused; an Operations head with no other Operations head cannot submit.
+
+## 28. Phase 7 slice 4 — Internal service requests (2026-11-22, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+Scope: PHASES 7 "Internal service requests": a small help desk to Technology or Operations. NOT in this slice: SLA timers or escalation (no scheduler), comments/threads on a request, attachments, categories editable in the UI, request templates, reporting. Remaining in Phase 7: invoice/quotation register, renewal reminders.
+
+**Added**
+- Models `ServiceRequest`, `ServiceEvent` (append-only history), enums `ServiceStatus` (OPEN, IN_PROGRESS, RESOLVED, CLOSED, DECLINED, CANCELLED) and `ServicePriority`, `Notification.serviceId`, migration `20261120000000_service_requests`. DB CHECKs: title 3+ chars and non-empty description; assignee never the requester; IN_PROGRESS needs an assignee; RESOLVED/CLOSED carry resolvedAt and a non-empty resolution note; `closedAt` set exactly when CLOSED; DECLINED carries a reason.
+- `lib/service-requests.ts` (pure rules), `lib/service-ui.tsx`, `app/service-requests/actions.ts` (`submitService`, `actOnService`, `assignService`), pages `/service-requests`, `/service-requests/new`, `/service-requests/[id]`, nav item "Service requests" (everyone; badge = open items assigned to you), notification links, status badge colours.
+- Tests: `tests/service-requests.test.ts` (10). `npm test` total 168. Seven mutations (assignee may be the requester; plain members can read; head handles own request; start without assignee; handler closes for requester; cancel after work started; resolve without note) each fail a test.
+
+**Decisions (NOT confirmed by stakeholders)**
+- The CATEGORY decides the handling department (IT support and Access or accounts -> `technology`; Facilities, Office supplies, Other -> `operations`), resolved by slug on the server. Submission is refused if that team has no active head other than the requester.
+- Flow: OPEN -> (head assigns) -> IN_PROGRESS (assignee or head starts; needs an assignee) -> RESOLVED (note required) -> CLOSED by the requester, or reopened to OPEN by the requester with a reason. A head may DECLINE an OPEN request with a reason. The requester may cancel only while OPEN.
+- Assign/reassign: head of the handling team only, while OPEN or IN_PROGRESS. The assignee is looked up server-side and must be an ACTIVE member of that team and not the requester. Guarded on both status and the previously read assignee.
+- Visible to: the requester, the handling team's heads (never on their own request), and the current assignee. Plain team membership, other heads, Management heads as such and the Administrator role see nothing (RULES 2.3, 2.7).
+- Only the requester closes; the handler cannot close on their behalf. Writes are status-guarded and create is retry-safe (`clientToken`). Notifications are generic (no title or description); the actor is never notified of their own action. "Handlers" notifications go to the assignee if there is one, otherwise the team's heads.
+- The description hint warns against pasting secrets; nothing technical enforces it.
+
+**Verification (actual results)**
+- `tsx --test tests/*.test.ts`: 168/168 pass. `lib/service-requests.ts` type-checks under `tsc --strict` with a stubbed `@prisma/client`. Syntax-only parse of every new/changed `.ts`/`.tsx` file: clean. Model columns vs migration columns cross-checked by script.
+- NOT run: `npm ci`, `prisma generate`, project `tsc --noEmit`, `next build`, `prisma migrate` (no PostgreSQL), any browser or database. Migration SQL and its CHECKs have never been executed. The shell nav count now makes one more query per page load.
+
+**Risks to check first with a toolchain**
+- Migration SQL (apply all fifteen in order, then `prisma migrate diff`).
+- `memberships: { some: { departmentId } }` filter on the member list; `user.findUnique` select with nested `memberships`.
+- Reopen clears `resolutionNote`/`resolvedAt` to satisfy the CHECK; the earlier note survives only in the event history.
+
+**Next action:** build, apply all fifteen migrations, then click through: a Sales member files "IT support"; the Technology head sees it in the queue, assigns a Technology member; that member starts and resolves with a note; the requester reopens with a reason, then closes after a second resolve; a second Technology member who is not assigned gets redirected from the URL; the Technology head cannot assign themselves their own request; assigning an inactive user or the requester is refused.
