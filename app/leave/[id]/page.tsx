@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { LeaveStatusBadge } from "@/lib/leave-ui";
 import { Flash } from "@/lib/task-ui";
 import { fmtDate, fmtDateTime, todayStr } from "@/lib/tasks";
+import { holidaysInRange } from "@/lib/holidays";
 import { MAX_REASON, availableLeaveActions, canViewLeave, leaveDays } from "@/lib/leave";
 import { actOnLeave } from "../actions";
 
@@ -28,6 +29,7 @@ export default async function LeaveDetail({ params, searchParams }: { params: { 
   const actions = availableLeaveActions(user, l, todayStr());
   const mine = l.requesterId === user.id;
   const days = leaveDays(l.startDate, l.endDate);
+  const holidays = holidaysInRange(await db.holiday.findMany({ where: { date: { gte: l.startDate, lte: l.endDate } } }), l.startDate, l.endDate);
 
   return (
     <Shell>
@@ -88,6 +90,7 @@ export default async function LeaveDetail({ params, searchParams }: { params: { 
               <dl className="props">
                 <div><dt>Person</dt><dd><Person name={l.requester.displayName} /></dd></div>
                 <div><dt>Type</dt><dd>{l.leaveType}</dd></div>
+                {holidays.length > 0 && <div><dt>Company holidays inside</dt><dd>{holidays.map((h) => `${fmtDate(h.date)} ${h.name}`).join(", ")}</dd></div>}
                 <div><dt>Approver</dt><dd>Head of {l.approverDepartment.name}</dd></div>
                 <div><dt>Requested</dt><dd className="num">{fmtDateTime(l.createdAt)}</dd></div>
                 {l.decidedAt && <div><dt>Decided</dt><dd className="num">{fmtDateTime(l.decidedAt)}{l.decidedBy ? ` by ${l.decidedBy.displayName}` : ""}</dd></div>}

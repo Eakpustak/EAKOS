@@ -338,3 +338,28 @@ Scope: WORKFLOWS 3 steps 8-11 (project and delivery tasks, progress, confirmed c
 - Balances/accrual, weekend and holiday awareness, half days, team leave calendar, delegation when an approver is away, reminders for undecided requests (no scheduler), HR-specific dashboard, DB-backed authorization tests.
 
 **Next action:** answer the open questions above, then with Prisma engines run `npx prisma migrate deploy` and click through: employee requests leave -> own department head sees it under "To decide" and approves; a Tech colleague cannot open `/leave/<id>`; a head cannot decide their own request (Management head does); cancelling approved leave that already started is refused.
+
+
+## 20. Phase 6 slice 2 — Holiday calendar and HR overview (2026-11-14, WRITTEN, BUILT, NOT RUN AGAINST A DB)
+
+**Added**
+- Model `Holiday` (unique date); migration `20261114000000_holidays`. DB CHECKs: non-empty name; date is exactly midnight.
+- `lib/holidays.ts` (pure), `app/holidays/actions.ts` (`addHoliday`, `removeHoliday`), pages `/holidays` (everyone reads; year switch) and `/hr` (HR head only), "Holidays" nav for all, "HR overview" nav for the HR head. Leave form and leave detail now mention company holidays inside the dates.
+- HR overview: pending leave count, who is out today, approved leave starting in the next 14 days, next holiday. Read-only; links to the leave list.
+- Tests: `tests/holidays.test.ts` (5). `npm test` total 98. Four mutations (any head manages; today excluded; range end exclusive; no year limit) each fail a test.
+
+**Decisions (not confirmed by stakeholders)**
+- Only the HR head edits the calendar (Admin role and HR members grant nothing). Everyone signed in can read it.
+- Holidays are INFORMATIONAL: they do not change leave day counts, because weekend/holiday counting is unconfirmed (section 19).
+- Removing a holiday is a hard delete (reference data); an audit event keeps the date and name.
+- The HR overview shows names, dates and leave type only, no reasons. The HR head already has read access to leave (section 19).
+
+**Verification (actual results)**
+- `tsc --noEmit` clean; `next build` succeeds incl. `/holidays` and `/hr`; `npm test` 98/98.
+- All nine migrations applied in order to real PostgreSQL 16; duplicate date, blank name and non-midnight date each rejected by the database.
+
+**NOT verified**: server actions/pages never run against a Prisma query engine or database; no browser run (same as sections 14-19).
+
+**Not done / gaps**: weekend/holiday-aware day counts, bulk import of a holiday list, optional/restricted holidays, team leave calendar view, onboarding/offboarding checklists, restricted document register (needs private file storage).
+
+**Next action:** after `prisma migrate deploy`, click through: HR head adds a holiday and a duplicate date is refused; an ordinary employee sees the calendar but no add/remove forms and `/hr` redirects them; the HR overview lists someone with approved leave today.

@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { Shell } from "@/lib/shell";
+import { db } from "@/lib/db";
+import { fmtDate } from "@/lib/tasks";
+import { upcomingHolidays } from "@/lib/holidays";
 import { requireUser } from "@/lib/auth";
 import { Flash } from "@/lib/task-ui";
 import { Field, PageHeader } from "@/lib/ui";
@@ -16,12 +19,14 @@ export default async function NewLeave({ searchParams }: { searchParams: P }) {
   await requireUser();
   const v = searchParams;
   const today = todayStr();
+  const holidays = upcomingHolidays(await db.holiday.findMany({ where: { date: { gte: new Date(`${today}T00:00:00.000Z`) } }, orderBy: { date: "asc" }, take: 5 }), today, 3);
   const earliest = new Date(new Date(`${today}T00:00:00.000Z`).getTime() - MAX_BACKDATE_DAYS * 86_400_000).toISOString().slice(0, 10);
   return (
     <Shell>
       <PageHeader title="Request leave" crumbs={[{ label: "Leave", href: "/leave" }, { label: "Request leave" }]}
         description="Your department head decides. You are told the outcome here; nothing is approved until they respond." />
       <Flash error={v.error} />
+      {holidays.length > 0 && <p className="hint" style={{ marginBottom: "1rem" }}>Upcoming company holidays: {holidays.map((h) => `${fmtDate(h.date)} ${h.name}`).join(" · ")}. They still count as leave days.</p>}
       <form action={submitLeave} className="panel form-narrow">
         <input type="hidden" name="clientToken" value={v.clientToken || randomUUID()} />
         <div className="form-grid">

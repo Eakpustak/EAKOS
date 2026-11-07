@@ -2,9 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Briefcase, CalendarDays, ClipboardList, FolderKanban, Handshake, LayoutDashboard, Megaphone, Menu, Users, UserCog, X } from "lucide-react";
+import { Bell, Briefcase, CalendarCheck, CalendarDays, HeartHandshake, ClipboardList, FolderKanban, Handshake, LayoutDashboard, Megaphone, Menu, Users, UserCog, X } from "lucide-react";
 
-const ICONS = { work: LayoutDashboard, tasks: ClipboardList, handovers: Handshake, hub: Megaphone, leads: Briefcase, projects: FolderKanban, leave: CalendarDays, bell: Bell, people: Users, admin: UserCog } as const;
+const ICONS = { work: LayoutDashboard, tasks: ClipboardList, handovers: Handshake, hub: Megaphone, leads: Briefcase, projects: FolderKanban, holidays: CalendarCheck, hr: HeartHandshake, leave: CalendarDays, bell: Bell, people: Users, admin: UserCog } as const;
 export type NavIcon = keyof typeof ICONS;
 
 export function NavItem({ href, label, icon, count, countLabel = "unread" }: { href: string; label: string; icon: NavIcon; count?: number; countLabel?: string }) {

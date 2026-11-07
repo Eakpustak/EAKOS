@@ -310,7 +310,7 @@ td .sub-line.overdue { color: var(--danger); font-weight: 600; }
 
 /* ---------- Stat tiles (dashboard) ---------- */
 .stats { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); }
-a.stat { display: block; padding: 1rem 1.15rem; text-decoration: none; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+a.stat, div.stat { display: block; padding: 1rem 1.15rem; text-decoration: none; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
 a.stat:hover { border-color: var(--primary); color: var(--text); }
 .stat .stat-top { display: flex; align-items: center; justify-content: space-between; color: var(--text-2); font-size: .85rem; font-weight: 600; }
 .stat .stat-top .ic { color: var(--text-3); }

@@ -4,6 +4,7 @@ import { db } from "./db";
 import SignOutButton from "./signout";
 import { NavItem, ShellFrame } from "./shell-client";
 import { isSalesMember } from "./leads";
+import { isHrHead } from "./leave";
 import { Avatar } from "./ui";
 
 export async function Shell({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,8 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           <NavItem href="/handovers" label="Handovers" icon="handovers" count={awaitingHandovers} countLabel="awaiting your response" />
           <NavItem href="/projects" label="Projects" icon="projects" />
           <NavItem href="/leave" label="Leave" icon="leave" />
+          <NavItem href="/holidays" label="Holidays" icon="holidays" />
+          {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}
           <NavItem href="/hub" label="Company hub" icon="hub" />
           {isSalesMember(user) && <NavItem href="/leads" label="Leads" icon="leads" />}
           <NavItem href="/notifications" label="Notifications" icon="bell" count={unread} />

@@ -53,6 +53,7 @@ model User {
   milestonesDone    Milestone[]            @relation("MilestoneDoneBy")
   leaveRequests     LeaveRequest[]         @relation("LeaveRequester")
   leaveDecided      LeaveRequest[]         @relation("LeaveDecider")
+  holidaysCreated   Holiday[]
 }
 
 model Department {
@@ -499,4 +500,15 @@ model LeaveRequest {
   @@index([requesterId, status])
   @@index([approverDepartmentId, status])
   @@index([startDate, endDate])
+}
+
+/// Company holiday (reference data, one per calendar date). Date-only (midnight UTC). Informational:
+/// it does not change leave day counts, because weekend/holiday counting rules are unconfirmed.
+model Holiday {
+  id          String   @id @default(cuid())
+  date        DateTime @unique
+  name        String
+  createdById String
+  createdAt   DateTime @default(now())
+  createdBy   User     @relation(fields: [createdById], references: [id])
 }
