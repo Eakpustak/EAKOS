@@ -74,6 +74,9 @@ model User {
   purchasesDecided  PurchaseRequest[]      @relation("PurchaseDecider")
   purchasesOrdered  PurchaseRequest[]      @relation("PurchaseOrderer")
   purchaseEvents    PurchaseEvent[]
+  recordsCreated    FinanceRecord[]        @relation("RecordCreator")
+  recordsSettled    FinanceRecord[]        @relation("RecordSettler")
+  recordEvents      FinanceRecordEvent[]
   serviceRequested  ServiceRequest[]      @relation("ServiceRequester")
   serviceAssigned   ServiceRequest[]      @relation("ServiceAssignee")
   serviceEvents     ServiceEvent[]
@@ -720,6 +723,7 @@ model Vendor {
   updatedAt   DateTime     @updatedAt
   createdBy   User         @relation("VendorCreator", fields: [createdById], references: [id])
   purchases   PurchaseRequest[]
+  records     FinanceRecord[]
 
   @@index([status, name])
 }
@@ -845,4 +849,63 @@ model ServiceEvent {
   actor      User           @relation(fields: [actorId], references: [id])
 
   @@index([serviceId, createdAt])
+}
+
+enum RecordKind {
+  QUOTATION
+  INVOICE
+}
+
+enum RecordStatus {
+  OPEN
+  PAID
+  ACCEPTED
+  DECLINED
+  VOID
+}
+
+/// Register of vendor quotations and invoices (PHASES 7). Integer minor units plus currency. Administrative tracking only: not accounting, not GST.
+model FinanceRecord {
+  id           String       @id @default(cuid())
+  kind         RecordKind
+  vendorId     String
+  reference    String
+  referenceKey String
+  amountMinor  Int
+  currency     String
+  issueDate    DateTime     @db.Date
+  dueDate      DateTime?    @db.Date
+  status       RecordStatus @default(OPEN)
+  note         String?
+  paidAt       DateTime?
+  paymentRef   String?
+  settledAt    DateTime?
+  settledById  String?
+  createdById  String
+  clientToken  String?      @unique
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  vendor       Vendor       @relation(fields: [vendorId], references: [id])
+  createdBy    User         @relation("RecordCreator", fields: [createdById], references: [id])
+  settledBy    User?        @relation("RecordSettler", fields: [settledById], references: [id])
+  events       FinanceRecordEvent[]
+
+  @@unique([vendorId, kind, referenceKey])
+  @@index([kind, status, dueDate])
+  @@index([vendorId])
+}
+
+model FinanceRecordEvent {
+  id         String        @id @default(cuid())
+  recordId   String
+  actorId    String
+  action     String
+  fromStatus String?
+  toStatus   String
+  comment    String?
+  createdAt  DateTime      @default(now())
+  record     FinanceRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  actor      User          @relation(fields: [actorId], references: [id])
+
+  @@index([recordId, createdAt])
 }

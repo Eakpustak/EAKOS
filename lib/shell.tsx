@@ -9,6 +9,7 @@ import { canViewPipelineSummary } from "./pipeline";
 import { canManageCases } from "./checklists";
 import { isDocHrHead } from "./documents";
 import { canViewVendors } from "./vendors";
+import { canViewRecords } from "./finance-records";
 import { Avatar } from "./ui";
 
 export async function Shell({ children, allowPasswordChange }: { children: React.ReactNode; allowPasswordChange?: boolean }) {
@@ -41,6 +42,7 @@ export async function Shell({ children, allowPasswordChange }: { children: React
           <NavItem href="/purchases" label="Purchases" icon="purchases" />
           <NavItem href="/service-requests" label="Service requests" icon="service" count={assignedService} countLabel="assigned to you" />
           {canViewVendors(user) && <NavItem href="/vendors" label="Vendors" icon="vendors" />}
+          {canViewRecords(user) && <NavItem href="/invoices" label="Invoices & quotes" icon="invoices" />}
           <NavItem href="/holidays" label="Holidays" icon="holidays" />
           {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}
           {(canManageCases(user) || openCaseItems > 0) && <NavItem href="/checklists" label="Checklists" icon="checklists" count={openCaseItems} countLabel="assigned to you" />}

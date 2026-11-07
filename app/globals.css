@@ -457,3 +457,5 @@ details.ver .prose { margin-top: .6rem; }
 .badge.lv-declined { color: var(--danger); background: var(--danger-soft); border-color: transparent; }
 .badge.lv-declined::before { border-radius: 1px; }
 .badge.lv-received { color: var(--success); background: var(--success-soft); border-color: transparent; }
+.badge.lv-accepted { color: var(--success); background: var(--success-soft); border-color: transparent; }
+.badge.lv-void { color: var(--text-3); text-decoration: line-through; }

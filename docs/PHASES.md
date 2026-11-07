@@ -145,6 +145,8 @@ Acceptance:
 
 > Status 2026-11-22: slice 4 written: internal service requests (MEMORY 28). Remaining: invoice/quotation register, renewal reminders. Nothing built or run against a database.
 
+> Status 2026-11-23: slice 5 written: invoice/quotation register (MEMORY 29). Remaining: renewal reminders. Nothing built against the Prisma client; migrations 1-16 applied to a real PostgreSQL.
+
 > Status 2026-11-21: slice 3 written: purchase requests and approvals (MEMORY 27), referencing the vendor register. Remaining: service requests, invoice/quotation register, renewal reminders. Nothing built or run against a database.
 
 > Status 2026-11-20: slice 2 written: vendor register (MEMORY 26). Remaining: service requests, purchase requests, invoice/quotation register, renewal reminders. Nothing built or run against a database.

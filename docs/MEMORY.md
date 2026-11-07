@@ -3,9 +3,9 @@
 
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
-- Last updated: 2026-11-16
+- Last updated: 2026-11-23
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 7 slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 7 slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -586,3 +586,32 @@ Scope: PHASES 7 "Internal service requests": a small help desk to Technology or 
 - Reopen clears `resolutionNote`/`resolvedAt` to satisfy the CHECK; the earlier note survives only in the event history.
 
 **Next action:** build, apply all fifteen migrations, then click through: a Sales member files "IT support"; the Technology head sees it in the queue, assigns a Technology member; that member starts and resolves with a note; the requester reopens with a reason, then closes after a second resolve; a second Technology member who is not assigned gets redirected from the URL; the Technology head cannot assign themselves their own request; assigning an inactive user or the requester is refused.
+
+## 29. Phase 7 slice 5 — Invoice and quotation register (2026-11-23, WRITTEN, NOT BUILT, MIGRATION RUN ON REAL POSTGRES)
+
+Scope: PHASES 7 "Invoice/quotation and payment-status register". Administrative tracking only: not accounting, not GST, no money moves. NOT in this slice: attachments/scans, tax split, links to purchase requests or expenses, payment-due reminders (no scheduler), editing a record (wrong entries are voided and re-entered), totals across currencies. Remaining in Phase 7: renewal reminders.
+
+**Added**
+- Models `FinanceRecord`, `FinanceRecordEvent` (append-only history), enums `RecordKind` (INVOICE, QUOTATION) and `RecordStatus` (OPEN, PAID, ACCEPTED, DECLINED, VOID), migration `20261121000000_finance_records`. Unique `(vendorId, kind, referenceKey)`. DB CHECKs: amount 1..100,000,000 minor units; currency allowlist; status fits kind; invoice has a due date and no range runs backwards; OPEN carries no settler, every other status carries settledAt+settledById; payment reference (3+ chars) and paidAt exist exactly when PAID; DECLINED/VOID carry a note.
+- `lib/finance-records.ts` (pure rules), `lib/finance-record-ui.tsx`, `app/invoices/actions.ts` (`createRecord`, `actOnRecord`), pages `/invoices` (Open / Overdue / Settled / All, type filter, pagination, outstanding total per currency), `/invoices/new`, `/invoices/[id]`, nav item "Invoices & quotes", badge colours `lv-accepted`, `lv-void`.
+- Tests: `tests/finance-records.test.ts` (10). `npm test` total 178. A mutation (Operations head may manage) fails 3 tests.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Manage: head of Finance & Administration only. Read: that head and the head of Operations (same readers as the vendor register). Plain members, Management heads as such and the Administrator role see nothing (RULES 2.3, 2.7). A refused write is audited as `record.write` / `denied`. No notifications are sent.
+- Invoice: OPEN -> PAID (payment reference required) or VOID (reason). Quotation: OPEN -> ACCEPTED, DECLINED (reason) or VOID (reason). All other states are final. Writes are status-guarded (`updateMany where status = what was read`).
+- Records only for an ACTIVE vendor, looked up server-side. The detail page selects the vendor name only (contact details stay in the vendor register). Create is retry-safe via `clientToken`; a duplicate number per vendor+type is refused (checked first, then by the unique index).
+- "Overdue" (open invoice past due) and "Expired" (open quotation past valid-until) are computed at read time in `APP_TZ`, never stored.
+
+**Verification (actual results)**
+- `npm test`: 178/178 pass.
+- All 16 migrations applied in order to a real PostgreSQL 16 (scratch cluster, since stopped). New table accepted valid rows; 9 deliberately bad statements were rejected (duplicate vendor+kind+reference, invoice without due date, zero amount, unknown currency, due before issue, accept on an invoice, short payment reference, void without note, deleting a vendor that has records).
+- `tsc --noEmit`: the only errors in new files come from the Prisma client not being generated (`Prisma.PrismaClientKnownRequestError`, `Prisma.FinanceRecord*Input`, implicit-any callbacks), the same class as in every earlier slice.
+- NOT run: `prisma generate` (the Prisma engine host returned 403 in this sandbox, also with `--no-engine`), `next build`, `prisma migrate diff`, any browser or database-backed page.
+
+**Risks to check first with a toolchain**
+- `orderBy dueDate {sort, nulls}` and `groupBy` with `_sum`/`_count` in `/invoices`.
+- `where: { vendorId_kind_referenceKey: {...} }` compound-unique name generated by Prisma.
+- `@db.Date` columns round-trip as UTC-midnight `Date`s; `fmtDate` and the overdue badge assume that.
+- `ConfirmSubmit` inside a form with a required textarea (void): check the browser validates before the dialog submits.
+
+**Next action:** on a machine that can fetch Prisma engines: `npm ci && npm run lint && npm run build && npx prisma migrate deploy && npx prisma migrate diff ...`. Click through: Finance head adds an invoice for an active vendor; the same number again is refused; an inactive vendor is refused; mark paid needs a reference; a past due date shows Overdue; void needs a reason and then freezes the record; the Operations head sees the pages read-only; a Technology member is redirected from `/invoices`.
