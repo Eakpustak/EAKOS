@@ -307,3 +307,34 @@ Scope: WORKFLOWS 3 steps 8-11 (project and delivery tasks, progress, confirmed c
 - Reassigning a project owner, editing name/description/dates, milestone ordering/editing, project comments/activity feed (only audit events), project dashboard on My work, management summaries, DB-backed authorization tests, notifications when milestones become overdue (no scheduler).
 
 **Next action:** with Prisma engines available: `npx prisma migrate deploy`, then click through: Tech receiver accepts a Sales handover -> Create project -> add milestone, add member, create task -> a non-member Tech colleague gets redirected from `/projects/<id>`; Sales owner sees "Delivery project ... started" on the lead timeline; completing is refused with an open milestone.
+
+
+## 19. Security bump + Phase 6 slice 1 — Leave requests (2026-11-13, WRITTEN, BUILT, NOT RUN AGAINST A DB)
+
+**Security**: `next` 14.2.15 -> 14.2.35 (exact pin). Closes the pending CVE-2025-29927 item from section 13. `tsc`, `next build` and all tests pass on it. Every page and action still re-checks the session itself (`requireUser`), so authorization never depended on middleware alone.
+
+**Scope**: leave request, approve/reject with reason, requester cancel. NOT in this slice: leave balances, onboarding/offboarding checklists, restricted document register, holiday calendar, HR dashboard.
+
+**Added**
+- Model `LeaveRequest`, enum `LeaveStatus`, `Notification.leaveId`; migration `20261113000000_leave`. DB CHECKs: end >= start; approver never the requester; APPROVED/REJECTED carry decidedAt+decidedById (CANCELLED may keep an earlier decision); REJECTED needs a non-empty note.
+- `lib/leave.ts` (pure rules), `lib/leave-ui.tsx`, `app/leave/actions.ts` (`submitLeave`, `actOnLeave`), pages `/leave`, `/leave/new`, `/leave/[id]`, "Leave" nav item, notification links.
+- Tests: `tests/leave.test.ts` (8). `npm test` total 93. Five mutations (head approves own leave; reject without reason; reject then approve; cancel started leave; colleagues can view) each fail a test.
+
+**ASSUMPTIONS THAT NEED STAKEHOLDER CONFIRMATION (WORKFLOWS 6 says these must be confirmed first)**
+- Leave types are placeholders: Casual, Sick, Earned, Unpaid, Other. They are a string list in `lib/leave.ts`, so changing them needs no migration.
+- NO balances: nothing is deducted or limited. Days are calendar days, inclusive (no weekends/holidays logic).
+- Approver: a head of one of the requester's departments (never the requester). If the requester is a head or has no other head, the Management head decides; if nobody qualifies the submit is refused. The approver department is fixed at submit.
+- Visibility: requester, heads of the approver department, and the HR head (read-only). The reason is shown only to those people. Notifications are generic and never carry type or reason.
+- A decision is final. Requester can cancel while pending, or after approval only before the first day. Overlapping pending/approved requests by the same person are refused. A request may start at most 14 days in the past and last at most 60 days.
+
+**Verification (actual results)**
+- `tsc --noEmit` clean; `next build` succeeds (Next 14.2.35) incl. `/leave`, `/leave/[id]`, `/leave/new`; `npm test` 93/93.
+- All eight migrations applied in order to real PostgreSQL 16; each of the four CHECKs rejected a bad row on real data.
+
+**NOT verified**
+- Server actions and pages have still never run against a Prisma query engine or database; no browser run; `prisma migrate diff` not run.
+
+**Not done / gaps**
+- Balances/accrual, weekend and holiday awareness, half days, team leave calendar, delegation when an approver is away, reminders for undecided requests (no scheduler), HR-specific dashboard, DB-backed authorization tests.
+
+**Next action:** answer the open questions above, then with Prisma engines run `npx prisma migrate deploy` and click through: employee requests leave -> own department head sees it under "To decide" and approves; a Tech colleague cannot open `/leave/<id>`; a head cannot decide their own request (Management head does); cancelling approved leave that already started is refused.

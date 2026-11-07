@@ -51,6 +51,8 @@ model User {
   projectsCreated   Project[]              @relation("ProjectCreator")
   projectMemberships ProjectMember[]       @relation("ProjectMemberUser")
   milestonesDone    Milestone[]            @relation("MilestoneDoneBy")
+  leaveRequests     LeaveRequest[]         @relation("LeaveRequester")
+  leaveDecided      LeaveRequest[]         @relation("LeaveDecider")
 }
 
 model Department {
@@ -64,6 +66,7 @@ model Department {
   handoversIn  Handover[]             @relation("HandoverToDept")
   contentAudiences ContentAudience[]
   projects     Project[]
+  leaveToReview LeaveRequest[]
 }
 
 model DepartmentMembership {
@@ -177,6 +180,7 @@ model Notification {
   contentId  String?
   leadId     String?
   projectId  String?
+  leaveId    String?
   readAt     DateTime?
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -185,6 +189,7 @@ model Notification {
   content    ContentItem? @relation(fields: [contentId], references: [id], onDelete: Cascade)
   lead       Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
   project    Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  leave      LeaveRequest? @relation(fields: [leaveId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -458,4 +463,40 @@ model Milestone {
   doneBy    User?           @relation("MilestoneDoneBy", fields: [doneById], references: [id])
 
   @@index([projectId, status])
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+/// Leave request. `leaveType` is a plain string validated against lib/leave.ts (types are not confirmed yet,
+/// so changing them must not need a migration). Dates are date-only (midnight UTC), inclusive.
+/// `approverDepartmentId` is fixed at submit: any head of that department (never the requester) may decide.
+/// CHECKs in the migration: end >= start; decided states carry decidedAt+decidedById; REJECTED carries a note.
+model LeaveRequest {
+  id                   String       @id @default(cuid())
+  requesterId          String
+  leaveType            String
+  startDate            DateTime
+  endDate              DateTime
+  reason               String?
+  status               LeaveStatus  @default(PENDING)
+  approverDepartmentId String
+  decidedById          String?
+  decidedAt            DateTime?
+  decisionNote         String?
+  clientToken          String?      @unique
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  requester            User         @relation("LeaveRequester", fields: [requesterId], references: [id])
+  decidedBy            User?        @relation("LeaveDecider", fields: [decidedById], references: [id])
+  approverDepartment   Department   @relation(fields: [approverDepartmentId], references: [id])
+  notifications        Notification[]
+
+  @@index([requesterId, status])
+  @@index([approverDepartmentId, status])
+  @@index([startDate, endDate])
 }

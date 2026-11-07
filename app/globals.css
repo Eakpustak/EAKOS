@@ -440,3 +440,10 @@ details.ver .prose { margin-top: .6rem; }
 .progress { display: inline-block; width: 6rem; height: .5rem; border-radius: 99px; background: var(--border, #ddd); overflow: hidden; }
 .progress > span { display: block; height: 100%; background: var(--primary); }
 .ms-done { text-decoration: line-through; color: var(--text-3); }
+
+/* Leave */
+.badge.lv-pending { color: var(--warning); background: var(--warning-soft); border-color: transparent; }
+.badge.lv-approved { color: var(--success); background: var(--success-soft); border-color: transparent; }
+.badge.lv-rejected { color: var(--danger); background: var(--danger-soft); border-color: transparent; }
+.badge.lv-rejected::before { border-radius: 1px; }
+.badge.lv-cancelled { color: var(--text-3); text-decoration: line-through; }

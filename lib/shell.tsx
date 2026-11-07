@@ -28,6 +28,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           <NavItem href="/tasks" label="Tasks" icon="tasks" />
           <NavItem href="/handovers" label="Handovers" icon="handovers" count={awaitingHandovers} countLabel="awaiting your response" />
           <NavItem href="/projects" label="Projects" icon="projects" />
+          <NavItem href="/leave" label="Leave" icon="leave" />
           <NavItem href="/hub" label="Company hub" icon="hub" />
           {isSalesMember(user) && <NavItem href="/leads" label="Leads" icon="leads" />}
           <NavItem href="/notifications" label="Notifications" icon="bell" count={unread} />

@@ -116,6 +116,8 @@ Acceptance:
 
 ## Phase 6 — HR essentials (P1)
 
+> Status 2026-11-13: slice 1 written: leave requests and approval only (MEMORY 19). Leave types, balances and the approval chain are UNCONFIRMED assumptions. Onboarding/offboarding, document register, holiday calendar and HR dashboard are NOT done.
+
 Deliverables:
 - Leave request and approval flow.
 - Onboarding/offboarding checklists.
