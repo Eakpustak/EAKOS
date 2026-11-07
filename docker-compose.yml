@@ -1,3 +1,4 @@
+
 services:
   db:
     image: postgres:16-alpine
@@ -18,8 +19,11 @@ services:
     build: .
     image: eakos-app:latest
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
     depends_on:
-      db: { condition: service_healthy }
+      db:
+        condition: service_healthy
     environment:
       DATABASE_URL: postgresql://eakos:${POSTGRES_PASSWORD}@db:5432/eakos
       NEXTAUTH_URL: https://${DOMAIN:?set in .env}
@@ -29,30 +33,16 @@ services:
       ADMIN_NAME: ${ADMIN_NAME:-Administrator}
       HANDOVER_ACK_HOURS: ${HANDOVER_ACK_HOURS:-24}
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on: [app]
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
     depends_on:
-      db: { condition: service_healthy }
+      db:
+        condition: service_healthy
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./backups:/backups
-    # Nightly dump, keep the newest 14 scheduled dumps.
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -65,5 +55,3 @@ services:
 
 volumes:
   pgdata:
-  caddy_data:
-  caddy_config:
