@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { Bell, BellOff, CheckCheck } from "lucide-react";
 import { Shell } from "@/lib/shell";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { fmtDateTime } from "@/lib/tasks";
+import { EmptyState, PageHeader } from "@/lib/ui";
 import { markAllNotificationsRead } from "../tasks/actions";
 
 export const dynamic = "force-dynamic";
@@ -15,21 +17,33 @@ export default async function Notifications() {
   const unread = items.filter((n) => !n.readAt).length;
   return (
     <Shell>
-      <h1>Notifications</h1>
-      <p className="sub">Seeing a notification is not the same as acting on it. Open the task to respond.</p>
-      {unread > 0 && (
-        <form action={markAllNotificationsRead}><button className="quiet" type="submit">Mark all as read</button></form>
-      )}
-      {items.length === 0 ? <p className="empty">You have no notifications.</p> : (
-        <ul className="thread">
-          {items.map((n) => (
-            <li key={n.id} className={n.readAt ? "" : "unread"}>
-              {n.taskId ? <Link href={`/tasks/${n.taskId}`}>{n.title}</Link> : n.title}{" "}
-              <span className="muted">{fmtDateTime(n.createdAt)}{n.readAt ? "" : " · unread"}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <PageHeader
+        title="Notifications"
+        description="Seeing a notification is not the same as acting on it. Open the task to respond."
+        actions={unread > 0 && (
+          <form action={markAllNotificationsRead}>
+            <button className="quiet" type="submit"><CheckCheck className="ic" aria-hidden="true" />Mark all as read</button>
+          </form>
+        )}
+      />
+      <div className="table-wrap">
+        {items.length === 0 ? (
+          <EmptyState icon={BellOff} title="No notifications">You will be notified here when work is assigned to you.</EmptyState>
+        ) : (
+          <ul className="list">
+            {items.map((n) => (
+              <li key={n.id} className={n.readAt ? "" : "unread"}>
+                <span className="ico"><Bell className="ic" aria-hidden="true" /></span>
+                <div className="grow">
+                  {n.taskId ? <Link href={`/tasks/${n.taskId}`}>{n.title}</Link> : <b>{n.title}</b>}
+                  <span className="sub-line muted"><time dateTime={n.createdAt.toISOString()}>{fmtDateTime(n.createdAt)}</time></span>
+                </div>
+                {!n.readAt && <span className="badge head">Unread</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </Shell>
   );
 }

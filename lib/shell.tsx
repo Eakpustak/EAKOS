@@ -1,26 +1,45 @@
-import Link from "next/link";
+import { Building2 } from "lucide-react";
 import { requireUser } from "./auth";
 import { db } from "./db";
 import SignOutButton from "./signout";
+import { NavItem, ShellFrame } from "./shell-client";
+import { Avatar } from "./ui";
 
 export async function Shell({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const unread = await db.notification.count({ where: { userId: user.id, readAt: null } });
-  return (
+  const primary = user.memberships.find((m) => m.isPrimary) ?? user.memberships[0];
+
+  const sidebar = (
     <>
-      <header className="top">
-        <span className="brand">EAK PUSTAK Workspace</span>
-        <nav aria-label="Main">
-          <Link href="/">My work</Link>
-          <Link href="/tasks">Tasks</Link>
-          <Link href="/notifications">Notifications{unread > 0 ? ` (${unread})` : ""}</Link>
-          <Link href="/directory">Directory</Link>
-          {user.systemRole === "ADMIN" && <Link href="/admin/users">Manage people</Link>}
+      <div className="brand">
+        <span className="brand-mark" aria-hidden="true">EP</span>
+        <span className="brand-name">EAK PUSTAK<small>Workspace</small></span>
+      </div>
+      <div className="workspace-chip">
+        <Building2 className="ic" aria-hidden="true" />
+        <div><b>{primary?.department.name ?? "No department"}</b><span>{user.memberships.length > 1 ? `+${user.memberships.length - 1} more` : "Your department"}</span></div>
+      </div>
+      <nav aria-label="Main" className="nav-group">
+        <div className="nav">
+          <NavItem href="/" label="My work" icon="work" />
+          <NavItem href="/tasks" label="Tasks" icon="tasks" />
+          <NavItem href="/notifications" label="Notifications" icon="bell" count={unread} />
+          <NavItem href="/directory" label="Directory" icon="people" />
+        </div>
+      </nav>
+      {user.systemRole === "ADMIN" && (
+        <nav aria-label="Administration" className="nav-group">
+          <div className="nav-label">Administration</div>
+          <div className="nav"><NavItem href="/admin/users" label="Manage people" icon="admin" /></div>
         </nav>
-        <span>{user.displayName}</span>
+      )}
+      <div className="sidebar-foot">
+        <Avatar name={user.displayName} />
+        <div className="who"><b>{user.displayName}</b><span>{user.email}</span></div>
         <SignOutButton />
-      </header>
-      <main>{children}</main>
+      </div>
     </>
   );
+  return <ShellFrame sidebar={sidebar}>{children}</ShellFrame>;
 }

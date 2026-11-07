@@ -5,11 +5,12 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { canAccessTask, parseDueDate, PRIORITIES, STATUSES, STATUS_LABEL } from "@/lib/tasks";
+import { canAccessTask, dueStr, parseDueDate, PRIORITIES, STATUSES, STATUS_LABEL } from "@/lib/tasks";
 
 /** Redirect back with a message. Never call inside try/catch (redirect throws). */
-function back(path: string, kind: "error" | "ok", msg: string): never {
-  redirect(`${path}${path.includes("?") ? "&" : "?"}${kind}=${encodeURIComponent(msg)}`);
+function back(path: string, kind: "error" | "ok", msg: string, keep?: Record<string, string>): never {
+  const params = new URLSearchParams({ [kind]: msg, ...(keep ?? {}) });
+  redirect(`${path}?${params.toString()}`);
 }
 
 const createSchema = z.object({
@@ -24,32 +25,39 @@ const createSchema = z.object({
 
 export async function createTask(formData: FormData) {
   const user = await requireUser();
-  const parsed = createSchema.safeParse({
-    title: formData.get("title") ?? "",
+  const raw = {
+    title: String(formData.get("title") ?? ""),
     description: String(formData.get("description") ?? ""),
-    assigneeId: formData.get("assigneeId") ?? "",
+    assigneeId: String(formData.get("assigneeId") ?? ""),
     departmentId: String(formData.get("departmentId") ?? "") || undefined,
-    priority: formData.get("priority") ?? "NORMAL",
+    priority: String(formData.get("priority") ?? "NORMAL"),
     dueAt: String(formData.get("dueAt") ?? "") || undefined,
-    clientToken: formData.get("clientToken") ?? "",
-  });
-  if (!parsed.success) back("/tasks/new", "error", parsed.error.issues[0].message);
+    clientToken: String(formData.get("clientToken") ?? ""),
+  };
+  // Preserve what was typed so a validation error doesn't lose the whole form.
+  const keep = {
+    title: raw.title, description: raw.description, assigneeId: raw.assigneeId,
+    departmentId: raw.departmentId ?? "", priority: raw.priority, dueAt: raw.dueAt ?? "",
+    clientToken: raw.clientToken,
+  };
+  const parsed = createSchema.safeParse(raw);
+  if (!parsed.success) back("/tasks/new", "error", parsed.error.issues[0].message, keep);
   const d = parsed.data;
 
   // Retry-safe: the same form submission never creates a second task.
   const existing = await db.task.findUnique({ where: { clientToken: d.clientToken } });
   if (existing) {
-    if (existing.creatorId !== user.id) back("/tasks/new", "error", "Could not create the task.");
+    if (existing.creatorId !== user.id) back("/tasks/new", "error", "Could not create the task.", keep);
     redirect(`/tasks/${existing.id}`);
   }
 
   const due = d.dueAt ? parseDueDate(d.dueAt) : null;
-  if (d.dueAt && !due) back("/tasks/new", "error", "Due date is not valid.");
+  if (d.dueAt && !due) back("/tasks/new", "error", "Due date is not valid.", keep);
 
   const assignee = await db.user.findUnique({ where: { id: d.assigneeId }, select: { id: true, status: true } });
-  if (!assignee || assignee.status !== "ACTIVE") back("/tasks/new", "error", "The chosen owner is not an active user.");
+  if (!assignee || assignee.status !== "ACTIVE") back("/tasks/new", "error", "The chosen owner is not an active user.", keep);
   if (d.departmentId && !user.memberships.some((m) => m.departmentId === d.departmentId)) {
-    back("/tasks/new", "error", "You can only file a task under a department you belong to.");
+    back("/tasks/new", "error", "You can only file a task under a department you belong to.", keep);
   }
 
   let taskId: string;
@@ -76,7 +84,7 @@ export async function createTask(formData: FormData) {
       if (t && t.creatorId === user.id) redirect(`/tasks/${t.id}`);
     }
     console.error("createTask failed", e);
-    back("/tasks/new", "error", "The task could not be saved. Nothing was created; please try again.");
+    back("/tasks/new", "error", "The task could not be saved. Nothing was created; please try again.", keep);
   }
   revalidatePath("/");
   revalidatePath("/tasks");
@@ -157,6 +165,54 @@ export async function reassignTask(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/tasks");
   back(path, "ok", "Owner changed.");
+}
+
+const editSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(200, "Title is too long (max 200)"),
+  description: z.string().trim().max(5000, "Description is too long (max 5000)").optional(),
+  dueAt: z.string().optional(),
+});
+
+/** Only the creator may edit title, description or due date (RULES: owner/head/assignee don't author the task). */
+export async function editTask(formData: FormData) {
+  const id = String(formData.get("taskId") ?? "");
+  const path = `/tasks/${id}`;
+  const { user, task } = await loadAccessible(id);
+  if (task.creatorId !== user.id) back(path, "error", "Only the person who filed this task can edit it.");
+
+  const raw = {
+    title: String(formData.get("title") ?? ""),
+    description: String(formData.get("description") ?? ""),
+    dueAt: String(formData.get("dueAt") ?? "") || undefined,
+  };
+  const parsed = editSchema.safeParse(raw);
+  if (!parsed.success) back(path, "error", parsed.error.issues[0].message);
+  const d = parsed.data;
+
+  const due = d.dueAt ? parseDueDate(d.dueAt) : null;
+  if (d.dueAt && !due) back(path, "error", "Due date is not valid.");
+
+  const noChange = d.title === task.title && (d.description || null) === task.description && dueStr(due) === dueStr(task.dueAt);
+  if (noChange) back(path, "ok", "Nothing changed.");
+
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.task.update({ where: { id: task.id }, data: { title: d.title, description: d.description || null, dueAt: due } });
+      await tx.taskEvent.create({ data: { taskId: task.id, actorId: user.id, type: "edited" } });
+      const notify = new Set([task.assigneeId]);
+      notify.delete(user.id);
+      for (const uid of notify) {
+        await tx.notification.create({ data: { userId: uid, type: "task.edited", title: "A task you own was edited", taskId: task.id } });
+      }
+      await tx.auditEvent.create({ data: { actorUserId: user.id, action: "task.edit", resourceType: "task", resourceId: task.id, outcome: "success" } });
+    });
+  } catch (e) {
+    console.error("editTask failed", e);
+    back(path, "error", "The task could not be saved. Nothing was changed.");
+  }
+  revalidatePath("/");
+  revalidatePath("/tasks");
+  back(path, "ok", "Task updated.");
 }
 
 export async function addComment(formData: FormData) {
