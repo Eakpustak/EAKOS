@@ -11,6 +11,7 @@ import { canAccessLead } from "@/lib/leads";
 import {
   MAX_TEXT, ackWindowHours, ageLabel, availableActions, canAccessHandover, isAckOverdue,
 } from "@/lib/handovers";
+import { canCreateFromHandover, canAccessProject } from "@/lib/projects";
 import { actOnHandover } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ const EVENT_TEXT: Record<string, string> = {
   rejected: "rejected the handover",
   completed: "marked the handover complete",
   cancelled: "cancelled the handover",
+  project_created: "started the delivery project",
 };
 
 export default async function HandoverDetail({
@@ -38,6 +40,7 @@ export default async function HandoverDetail({
       toDepartment: { select: { name: true } },
       linkedTask: { select: { id: true, title: true, creatorId: true, assigneeId: true, departmentId: true } },
       lead: { select: { id: true, organizationName: true, ownerId: true, createdById: true, stage: true } },
+      project: { select: { id: true, name: true, ownerId: true, createdById: true, departmentId: true, status: true, members: { select: { userId: true } } } },
       events: { orderBy: { createdAt: "desc" }, take: 100, include: { actor: { select: { displayName: true } } } },
     },
   });
@@ -60,6 +63,8 @@ export default async function HandoverDetail({
   const rejection = h.status === "REJECTED" ? reasonText("rejected") : null;
   // The source lead is only linked for people who may open it; everyone else just sees that one exists.
   const leadVisible = !!h.lead && canAccessLead(user, h.lead);
+  const canStartProject = canCreateFromHandover(user, h, !!h.project).ok;
+  const projectVisible = !!h.project && canAccessProject(user, h.project);
   const taskVisible = !!h.linkedTask && canAccessTask(user, h.linkedTask);
 
   return (
@@ -188,6 +193,15 @@ export default async function HandoverDetail({
               </div>
             </section>
           )}
+          {canStartProject && (
+            <section className="card" aria-labelledby="pj-h">
+              <div className="card-head"><h2 id="pj-h">Delivery project</h2></div>
+              <div className="card-body">
+                <p className="muted">You accepted this. Start a project to track milestones and tasks.</p>
+                <p><Link className="btn" href={`/projects/new?handoverId=${h.id}`}>Create project</Link></p>
+              </div>
+            </section>
+          )}
           {actions.length === 0 && !isSender && !isReceiver && (
             <Alert kind="info">You can see this as a department head. Only the sender and the named receiver can act on it.</Alert>
           )}
@@ -202,6 +216,11 @@ export default async function HandoverDetail({
                 <div><dt>Sent</dt><dd className="num">{fmtDateTime(h.sentAt)}</dd></div>
                 {h.respondedAt && <div><dt>First response</dt><dd className="num">{fmtDateTime(h.respondedAt)}</dd></div>}
                 {h.completedAt && <div><dt>Completed</dt><dd className="num">{fmtDateTime(h.completedAt)}</dd></div>}
+                {h.project && (
+                  <div><dt>Delivery project</dt><dd>
+                    {projectVisible ? <Link href={`/projects/${h.project.id}`}>{h.project.name}</Link> : <span className="muted">A delivery project has started</span>}
+                  </dd></div>
+                )}
                 {h.lead && (
                   <div><dt>Source lead</dt><dd>
                     {leadVisible ? <Link href={`/leads/${h.lead.id}`}>{h.lead.organizationName}</Link> : <span className="muted">A sales lead (the details are in the context above)</span>}

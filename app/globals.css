@@ -429,3 +429,14 @@ details.ver .prose { margin-top: .6rem; }
 .fu-overdue { color: var(--danger); font-weight: 600; }
 .fu-none { color: var(--warning); font-weight: 600; }
 .timeline .kind { display: inline-block; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3); margin-right: .4rem; }
+
+/* Projects */
+.badge.pj-active { color: var(--primary); background: var(--primary-soft); border-color: transparent; }
+.badge.pj-on_hold { color: var(--warning); background: var(--warning-soft); border-color: transparent; }
+.badge.pj-on_hold::before { border-radius: 1px; }
+.badge.pj-completed { color: var(--success); background: var(--success-soft); border-color: transparent; }
+.badge.pj-cancelled { color: var(--text-3); text-decoration: line-through; }
+.progress-wrap { display: inline-flex; align-items: center; gap: .5rem; }
+.progress { display: inline-block; width: 6rem; height: .5rem; border-radius: 99px; background: var(--border, #ddd); overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--primary); }
+.ms-done { text-decoration: line-through; color: var(--text-3); }

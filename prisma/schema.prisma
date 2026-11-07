@@ -47,6 +47,10 @@ model User {
   leadsOwned        Lead[]                 @relation("LeadOwner")
   leadsCreated      Lead[]                 @relation("LeadCreator")
   leadInteractions  LeadInteraction[]
+  projectsOwned     Project[]              @relation("ProjectOwner")
+  projectsCreated   Project[]              @relation("ProjectCreator")
+  projectMemberships ProjectMember[]       @relation("ProjectMemberUser")
+  milestonesDone    Milestone[]            @relation("MilestoneDoneBy")
 }
 
 model Department {
@@ -59,6 +63,7 @@ model Department {
   handoversOut Handover[]             @relation("HandoverFromDept")
   handoversIn  Handover[]             @relation("HandoverToDept")
   contentAudiences ContentAudience[]
+  projects     Project[]
 }
 
 model DepartmentMembership {
@@ -126,7 +131,10 @@ model Task {
   handovers     Handover[]
   leadId        String?
   lead          Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  projectId     String?
+  project       Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
+  @@index([projectId])
   @@index([assigneeId, status])
   @@index([creatorId])
   @@index([departmentId])
@@ -168,6 +176,7 @@ model Notification {
   handoverId String?
   contentId  String?
   leadId     String?
+  projectId  String?
   readAt     DateTime?
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -175,6 +184,7 @@ model Notification {
   handover   Handover? @relation(fields: [handoverId], references: [id], onDelete: Cascade)
   content    ContentItem? @relation(fields: [contentId], references: [id], onDelete: Cascade)
   lead       Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  project    Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -220,6 +230,7 @@ model Handover {
   receiver          User            @relation("HandoverReceiver", fields: [receiverId], references: [id])
   linkedTask        Task?           @relation(fields: [linkedTaskId], references: [id], onDelete: SetNull)
   lead              Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  project           Project?
   events            HandoverEvent[]
   notifications     Notification[]
 
@@ -379,4 +390,72 @@ model LeadInteraction {
   actor      User            @relation(fields: [actorId], references: [id])
 
   @@index([leadId, occurredAt])
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum MilestoneStatus {
+  OPEN
+  DONE
+}
+
+/// Delivery project owned by one named person in one department. Usually created from an ACCEPTED handover
+/// (at most one project per handover: unique handoverId). Never hard-deleted. Dates are date-only (midnight UTC).
+model Project {
+  id            String          @id @default(cuid())
+  name          String
+  description   String?
+  status        ProjectStatus   @default(ACTIVE)
+  departmentId  String
+  ownerId       String
+  createdById   String
+  handoverId    String?         @unique
+  dueAt         DateTime?
+  completedAt   DateTime?
+  clientToken   String?         @unique
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  department    Department      @relation(fields: [departmentId], references: [id])
+  owner         User            @relation("ProjectOwner", fields: [ownerId], references: [id])
+  createdBy     User            @relation("ProjectCreator", fields: [createdById], references: [id])
+  handover      Handover?       @relation(fields: [handoverId], references: [id], onDelete: SetNull)
+  members       ProjectMember[]
+  milestones    Milestone[]
+  tasks         Task[]
+  notifications Notification[]
+
+  @@index([departmentId, status])
+  @@index([ownerId, status])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation("ProjectMemberUser", fields: [userId], references: [id])
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+model Milestone {
+  id        String          @id @default(cuid())
+  projectId String
+  title     String
+  dueAt     DateTime?
+  status    MilestoneStatus @default(OPEN)
+  doneAt    DateTime?
+  doneById  String?
+  createdAt DateTime        @default(now())
+  project   Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  doneBy    User?           @relation("MilestoneDoneBy", fields: [doneById], references: [id])
+
+  @@index([projectId, status])
 }

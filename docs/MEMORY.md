@@ -277,3 +277,33 @@ Scope: WORKFLOWS 3 step 6 ("Sales creates a delivery handover") and step 10 (Sal
 - Projects, milestones, project/task creation on accept, duplicate-handover warning, lead timeline entry for handover reassignment (reassignment itself is still not built), DB-backed authorization tests.
 
 **Next action:** on a machine with Prisma engines: `npx prisma migrate deploy`, then click through: Sales owner opens a WON lead -> Hand over for delivery -> Tech receiver accepts; confirm the lead timeline shows sent and accepted, a Tech member cannot open `/leads/<id>`, another Sales intern cannot hand the lead over, and a NEW lead redirects with an error.
+
+
+## 18. Phase 5 slice 3 — Projects, members, milestones (2026-11-12, WRITTEN, BUILT, NOT RUN AGAINST A DB)
+
+Scope: WORKFLOWS 3 steps 8-11 (project and delivery tasks, progress, confirmed completion) plus PHASES 5 "project creation, membership and milestones".
+
+**Added**
+- Models `Project`, `ProjectMember`, `Milestone`; enums `ProjectStatus`, `MilestoneStatus`; `Task.projectId`, `Notification.projectId`; migration `20261112000000_projects`. DB: unique `handoverId` (one project per handover), unique `clientToken`, unique (project, user), CHECK completed status <=> `completedAt`, CHECK milestone DONE <=> `doneAt`.
+- `lib/projects.ts` (pure rules), `lib/project-ui.tsx`, `app/projects/actions.ts` (`createProject`, `addMilestone`, `setMilestone` done/reopen/remove, `changeProjectStatus`, `addMember`, `removeMember`, `createProjectTask`), pages `/projects`, `/projects/new`, `/projects/[id]`, "Projects" nav item, notification links, handover page "Create project" card and "Delivery project" detail row.
+- Tests: `tests/projects.test.ts` (9). `npm test` total 85. Five mutations (anyone may start from a handover; any handover status; complete with open milestones; creator can manage; completed reopenable) each fail a test.
+
+**Decisions (not confirmed by stakeholders)**
+- One delivery owner, one delivering department. Visible to owner, creator, listed members and the department head(s); plain department membership and ADMIN grant nothing. Managed by owner and department head only.
+- A project from a handover can only be created by the named RECEIVER, once the handover is ACCEPTED, once per handover. The sender is notified; if the handover came from a lead, a note is added to the lead timeline (Sales keeps customer ownership, sees delivery start).
+- Status: ACTIVE -> ON_HOLD/COMPLETED/CANCELLED; ON_HOLD -> ACTIVE/CANCELLED; COMPLETED and CANCELLED are final. Completing requires every milestone done. Closed projects are read-only (milestones, members, tasks).
+- Completing a project does NOT auto-complete the handover (WORKFLOWS 2: no auto-completion without an approved rule). The receiver still closes it with a summary.
+- Tasks created from a project belong to the project's department and may be assigned only to the owner or a listed member; normal task access still applies, so the project page lists only tasks the viewer can already see.
+- Milestones are capped at 50 per project. Removing a milestone is a hard delete (audit event kept).
+
+**Verification (actual results)**
+- `tsc --noEmit` clean; `next build` succeeds incl. `/projects`, `/projects/[id]`, `/projects/new`; `npm test` 85/85.
+- All seven migrations applied in order to real PostgreSQL 16; both CHECKs rejected bad rows, the duplicate-member unique rejected, deleting a project cascaded its milestones.
+
+**NOT verified**
+- Server actions and pages have still never run against a Prisma query engine or database; no browser run; `prisma migrate diff` not run.
+
+**Not done / gaps**
+- Reassigning a project owner, editing name/description/dates, milestone ordering/editing, project comments/activity feed (only audit events), project dashboard on My work, management summaries, DB-backed authorization tests, notifications when milestones become overdue (no scheduler).
+
+**Next action:** with Prisma engines available: `npx prisma migrate deploy`, then click through: Tech receiver accepts a Sales handover -> Create project -> add milestone, add member, create task -> a non-member Tech colleague gets redirected from `/projects/<id>`; Sales owner sees "Delivery project ... started" on the lead timeline; completing is refused with an open milestone.
