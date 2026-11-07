@@ -3,9 +3,9 @@
 
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
-- Last updated: 2026-11-24
+- Last updated: 2026-11-25
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 7 slice 6 (renewals, section 30; completes Phase 7 as written) on top of slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 8 slice 1 (technical assets, section 31) on top of Phase 7 slice 6 (renewals, section 30; completes Phase 7 as written) on top of slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -639,3 +639,28 @@ Scope: PHASES 7 "Subscription/domain/hosting renewal reminders". Completes Phase
 **Risks to check first with a toolchain:** `where: { renewalDate: x.renewalDate }` on a `@db.Date` column in `markRenewed`; the sidebar query on every page load for Operations/Finance heads.
 
 **Next action:** on a machine with npm + Prisma engines: `npm ci && npm run lint && npm run build && npx prisma migrate deploy && npx prisma migrate diff ...`, then click through Phase 7 end to end. After that, Phase 8 (technology operations) or the Phase 9 hardening pass.
+
+## 31. Phase 8 slice 1 — Technical asset inventory (2026-11-25, WRITTEN, NOT BUILT, MIGRATION RUN ON REAL POSTGRES)
+
+Scope: PHASES 8 "Technical asset inventory". NOT in this slice (rest of Phase 8): deployment/release records, incident records, technical SOPs, GitHub integration beyond a link (GitHub stays the source of truth for code), asset relationships/dependencies, renewals link, history view.
+
+**Added**
+- Model `TechAsset`, enum `AssetStatus` (ACTIVE, RETIRED), migration `20261123000000_tech_assets`. `nameKey` unique. DB CHECKs: name 2..120; type and environment allowlists; `url` must start with http(s)://.
+- `lib/assets.ts` (pure rules + `findSecret`), `app/assets/actions.ts` (`createAsset`, `updateAsset`, `setAssetStatus`), `app/assets/asset-form.tsx`, pages `/assets`, `/assets/new`, `/assets/[id]`, nav item "Technical assets" (Technology members only).
+- Tests: `tests/assets.test.ts` (5). `npm test` total 188.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Read: any member of Technology. Manage: the Technology head. Everyone else, including Management heads and the Administrator role, is redirected (RULES 2.3, 2.7). Refused writes are audited as `asset.write` / `denied`.
+- SECRETS ARE NEVER STORED (PHASES 8 acceptance). `findSecret` refuses private keys, cloud/GitHub/Slack/API keys, signed tokens, URLs with credentials and "password/secret/token: value" phrasing in name, link and notes. It is a heuristic, not a guarantee: ordinary notes such as "Credentials are in the team vault" pass on purpose. On a refused create the notes and link are not echoed back into the query string.
+- Never deleted, only retired. Owner is optional and must be an ACTIVE Technology member (checked server-side). Edits are guarded by the `updatedAt` the form was loaded with. Audit events record changed field names only.
+- Links are re-validated with `safeHttpUrl` at render and opened with `rel="noopener noreferrer nofollow"`.
+
+**Verification (actual results)**
+- `npm test`: 188/188 pass.
+- All 18 migrations applied in order to a real PostgreSQL 16; a valid asset was accepted and 5 bad ones rejected (duplicate name key, 1-character name, unknown type, unknown environment, `javascript:` link).
+- `tsc --noEmit`: only errors caused by the ungenerated Prisma client.
+- NOT run: `prisma generate` (engine host 403), `next build`, `prisma migrate diff`, any browser or database-backed page.
+
+**Risks to check first with a toolchain:** `memberships: { some: { department: { slug } } }` owner filter; `AssetFields` receives either a stored row or query-string values; the secret heuristic may flag legitimate notes (tune from real use).
+
+**Next action:** build and click through: Technology head adds "Prod API" (Server, Production); a note with `password: hunter2` is refused; a Technology member sees it read-only; a Sales member is redirected from `/assets`; stale save is refused; retire and reactivate. Then Phase 8 slice 2 (deployment/release records) or incident records.

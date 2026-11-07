@@ -12,6 +12,7 @@ import { canViewVendors } from "./vendors";
 import { canViewRecords } from "./finance-records";
 import { attentionCount, canViewRenewals } from "./renewals";
 import { todayStr } from "./tasks";
+import { canViewAssets } from "./assets";
 import { Avatar } from "./ui";
 
 export async function Shell({ children, allowPasswordChange }: { children: React.ReactNode; allowPasswordChange?: boolean }) {
@@ -49,6 +50,7 @@ export async function Shell({ children, allowPasswordChange }: { children: React
           {canViewVendors(user) && <NavItem href="/vendors" label="Vendors" icon="vendors" />}
           {canViewRecords(user) && <NavItem href="/invoices" label="Invoices & quotes" icon="invoices" />}
           {canViewRenewals(user) && <NavItem href="/renewals" label="Renewals" icon="renewals" count={renewalsAttention} countLabel="due soon or overdue" />}
+          {canViewAssets(user) && <NavItem href="/assets" label="Technical assets" icon="assets" />}
           <NavItem href="/holidays" label="Holidays" icon="holidays" />
           {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}
           {(canManageCases(user) || openCaseItems > 0) && <NavItem href="/checklists" label="Checklists" icon="checklists" count={openCaseItems} countLabel="assigned to you" />}

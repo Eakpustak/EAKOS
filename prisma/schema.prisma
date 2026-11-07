@@ -78,6 +78,8 @@ model User {
   recordsSettled    FinanceRecord[]        @relation("RecordSettler")
   recordEvents      FinanceRecordEvent[]
   renewalsCreated   Renewal[]              @relation("RenewalCreator")
+  assetsCreated     TechAsset[]            @relation("AssetCreator")
+  assetsOwned       TechAsset[]            @relation("AssetOwner")
   serviceRequested  ServiceRequest[]      @relation("ServiceRequester")
   serviceAssigned   ServiceRequest[]      @relation("ServiceAssignee")
   serviceEvents     ServiceEvent[]
@@ -946,4 +948,31 @@ model Renewal {
 
   @@index([status, renewalDate])
   @@index([vendorId])
+}
+
+enum AssetStatus {
+  ACTIVE
+  RETIRED
+}
+
+/// Technical asset inventory entry. Records WHAT exists and WHO owns it. Never credentials, keys or tokens (the app refuses obvious ones).
+model TechAsset {
+  id          String      @id @default(cuid())
+  name        String
+  nameKey     String      @unique
+  assetType   String
+  environment String
+  url         String?
+  ownerId     String?
+  notes       String?
+  status      AssetStatus @default(ACTIVE)
+  createdById String
+  clientToken String?     @unique
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  owner       User?       @relation("AssetOwner", fields: [ownerId], references: [id])
+  createdBy   User        @relation("AssetCreator", fields: [createdById], references: [id])
+
+  @@index([status, assetType])
+  @@index([ownerId])
 }
