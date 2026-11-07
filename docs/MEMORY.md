@@ -3,9 +3,9 @@
 
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
-- Last updated: 2026-11-23
+- Last updated: 2026-11-24
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 7 slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 7 slice 6 (renewals, section 30; completes Phase 7 as written) on top of slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -589,7 +589,7 @@ Scope: PHASES 7 "Internal service requests": a small help desk to Technology or 
 
 ## 29. Phase 7 slice 5 — Invoice and quotation register (2026-11-23, WRITTEN, NOT BUILT, MIGRATION RUN ON REAL POSTGRES)
 
-Scope: PHASES 7 "Invoice/quotation and payment-status register". Administrative tracking only: not accounting, not GST, no money moves. NOT in this slice: attachments/scans, tax split, links to purchase requests or expenses, payment-due reminders (no scheduler), editing a record (wrong entries are voided and re-entered), totals across currencies. Remaining in Phase 7: renewal reminders.
+Scope: PHASES 7 "Invoice/quotation and payment-status register". Administrative tracking only: not accounting, not GST, no money moves. NOT in this slice: attachments/scans, tax split, links to purchase requests or expenses, payment-due reminders (no scheduler), editing a record (wrong entries are voided and re-entered), totals across currencies. Remaining in Phase 7: nothing (renewals are section 30).
 
 **Added**
 - Models `FinanceRecord`, `FinanceRecordEvent` (append-only history), enums `RecordKind` (INVOICE, QUOTATION) and `RecordStatus` (OPEN, PAID, ACCEPTED, DECLINED, VOID), migration `20261121000000_finance_records`. Unique `(vendorId, kind, referenceKey)`. DB CHECKs: amount 1..100,000,000 minor units; currency allowlist; status fits kind; invoice has a due date and no range runs backwards; OPEN carries no settler, every other status carries settledAt+settledById; payment reference (3+ chars) and paidAt exist exactly when PAID; DECLINED/VOID carry a note.
@@ -615,3 +615,27 @@ Scope: PHASES 7 "Invoice/quotation and payment-status register". Administrative 
 - `ConfirmSubmit` inside a form with a required textarea (void): check the browser validates before the dialog submits.
 
 **Next action:** on a machine that can fetch Prisma engines: `npm ci && npm run lint && npm run build && npx prisma migrate deploy && npx prisma migrate diff ...`. Click through: Finance head adds an invoice for an active vendor; the same number again is refused; an inactive vendor is refused; mark paid needs a reference; a past due date shows Overdue; void needs a reason and then freezes the record; the Operations head sees the pages read-only; a Technology member is redirected from `/invoices`.
+
+## 30. Phase 7 slice 6 — Renewal register (2026-11-24, WRITTEN, NOT BUILT, MIGRATION RUN ON REAL POSTGRES)
+
+Scope: PHASES 7 "Subscription/domain/hosting renewal reminders". Completes Phase 7 as written. NOT in this slice: a scheduler (reminders are not pushed), email/notifications, editing a renewal (cancel and re-add), attachments, links to expenses or invoices. Never store logins or licence keys.
+
+**Added**
+- Model `Renewal`, enums `RenewalCycle` (MONTHLY, QUARTERLY, YEARLY), `RenewalStatus` (ACTIVE, CANCELLED), migration `20261122000000_renewals`. DB CHECKs: name 2..120; category allowlist; amount 1..100,000,000; currency allowlist; reminderDays 1..180; `cancelledAt` set exactly when CANCELLED. Vendor optional, FK RESTRICT.
+- `lib/renewals.ts` (pure rules), `app/renewals/actions.ts` (`createRenewal`, `markRenewed`, `cancelRenewal`), pages `/renewals`, `/renewals/new`, `/renewals/[id]`, nav item "Renewals" with a count of renewals that are due soon or overdue.
+- Tests: `tests/renewals.test.ts` (5). `npm test` total 183.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Manage: head of Operations. Read: heads of Operations and Finance & Administration (same as the vendor register). Everyone else, including admins, is redirected. Refused writes are audited as `renewal.write` / `denied`.
+- Reminders are computed at read time in `APP_TZ`: "due soon" from `renewalDate - reminderDays`, "overdue" after the date. The sidebar count is computed in `lib/shell.tsx` for permitted readers only (one extra query for them).
+- Mark renewed advances one cycle from the CURRENT date (month-end clamped, e.g. 31 Jan + 1 month = 28/29 Feb), so a late renewal does not drift. Guarded on the date the page showed, so a double click advances once. Cancel is final.
+
+**Verification (actual results)**
+- `npm test`: 183/183 pass.
+- All 17 migrations applied in order to a real PostgreSQL 16; a valid row was accepted and 6 bad ones rejected (1-character name, unknown category, zero amount, reminder of 181 days, CANCELLED without date, date without CANCELLED).
+- `tsc --noEmit`: only errors caused by the ungenerated Prisma client, as before.
+- NOT run: `prisma generate` (engine host 403), `next build`, `prisma migrate diff`, any browser or database-backed page.
+
+**Risks to check first with a toolchain:** `where: { renewalDate: x.renewalDate }` on a `@db.Date` column in `markRenewed`; the sidebar query on every page load for Operations/Finance heads.
+
+**Next action:** on a machine with npm + Prisma engines: `npm ci && npm run lint && npm run build && npx prisma migrate deploy && npx prisma migrate diff ...`, then click through Phase 7 end to end. After that, Phase 8 (technology operations) or the Phase 9 hardening pass.

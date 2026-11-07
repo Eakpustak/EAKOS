@@ -77,6 +77,7 @@ model User {
   recordsCreated    FinanceRecord[]        @relation("RecordCreator")
   recordsSettled    FinanceRecord[]        @relation("RecordSettler")
   recordEvents      FinanceRecordEvent[]
+  renewalsCreated   Renewal[]              @relation("RenewalCreator")
   serviceRequested  ServiceRequest[]      @relation("ServiceRequester")
   serviceAssigned   ServiceRequest[]      @relation("ServiceAssignee")
   serviceEvents     ServiceEvent[]
@@ -724,6 +725,7 @@ model Vendor {
   createdBy   User         @relation("VendorCreator", fields: [createdById], references: [id])
   purchases   PurchaseRequest[]
   records     FinanceRecord[]
+  renewals    Renewal[]
 
   @@index([status, name])
 }
@@ -908,4 +910,40 @@ model FinanceRecordEvent {
   actor      User          @relation(fields: [actorId], references: [id])
 
   @@index([recordId, createdAt])
+}
+
+enum RenewalCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum RenewalStatus {
+  ACTIVE
+  CANCELLED
+}
+
+/// Subscription, domain or hosting renewal to keep an eye on. No secrets, logins or licence keys. Reminders are computed at read time (no scheduler).
+model Renewal {
+  id            String        @id @default(cuid())
+  name          String
+  category      String
+  vendorId      String?
+  amountMinor   Int
+  currency      String
+  cycle         RenewalCycle
+  renewalDate   DateTime      @db.Date
+  reminderDays  Int           @default(30)
+  status        RenewalStatus @default(ACTIVE)
+  lastRenewedAt DateTime?
+  cancelledAt   DateTime?
+  createdById   String
+  clientToken   String?       @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  vendor        Vendor?       @relation(fields: [vendorId], references: [id])
+  createdBy     User          @relation("RenewalCreator", fields: [createdById], references: [id])
+
+  @@index([status, renewalDate])
+  @@index([vendorId])
 }

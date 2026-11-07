@@ -10,6 +10,8 @@ import { canManageCases } from "./checklists";
 import { isDocHrHead } from "./documents";
 import { canViewVendors } from "./vendors";
 import { canViewRecords } from "./finance-records";
+import { attentionCount, canViewRenewals } from "./renewals";
+import { todayStr } from "./tasks";
 import { Avatar } from "./ui";
 
 export async function Shell({ children, allowPasswordChange }: { children: React.ReactNode; allowPasswordChange?: boolean }) {
@@ -18,6 +20,9 @@ export async function Shell({ children, allowPasswordChange }: { children: React
   const awaitingHandovers = await db.handover.count({ where: { receiverId: user.id, status: "PENDING" } });
   const openCaseItems = await db.caseItem.count({ where: { ownerId: user.id, status: "OPEN", case: { status: "OPEN", subjectId: { not: user.id } } } });
   const assignedService = await db.serviceRequest.count({ where: { assigneeId: user.id, requesterId: { not: user.id }, status: { in: ["OPEN", "IN_PROGRESS"] } } });
+  // No scheduler yet: the sidebar count is computed here, only for people who may read renewals.
+  const renewalRows = canViewRenewals(user) ? await db.renewal.findMany({ where: { status: "ACTIVE" }, select: { status: true, renewalDate: true, reminderDays: true }, take: 500 }) : [];
+  const renewalsAttention = attentionCount(renewalRows.map((r) => ({ status: r.status, renewalDate: r.renewalDate.toISOString().slice(0, 10), reminderDays: r.reminderDays })), todayStr());
   const ownDocs = await db.employeeDocument.count({ where: { subjectId: user.id } });
   const primary = user.memberships.find((m) => m.isPrimary) ?? user.memberships[0];
 
@@ -43,6 +48,7 @@ export async function Shell({ children, allowPasswordChange }: { children: React
           <NavItem href="/service-requests" label="Service requests" icon="service" count={assignedService} countLabel="assigned to you" />
           {canViewVendors(user) && <NavItem href="/vendors" label="Vendors" icon="vendors" />}
           {canViewRecords(user) && <NavItem href="/invoices" label="Invoices & quotes" icon="invoices" />}
+          {canViewRenewals(user) && <NavItem href="/renewals" label="Renewals" icon="renewals" count={renewalsAttention} countLabel="due soon or overdue" />}
           <NavItem href="/holidays" label="Holidays" icon="holidays" />
           {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}
           {(canManageCases(user) || openCaseItems > 0) && <NavItem href="/checklists" label="Checklists" icon="checklists" count={openCaseItems} countLabel="assigned to you" />}
