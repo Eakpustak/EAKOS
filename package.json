@@ -7,7 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "tsc --noEmit",
-    "db:migrate": "prisma migrate deploy"
+    "db:migrate": "prisma migrate deploy",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
@@ -25,6 +26,7 @@
     "@types/node": "20.14.10",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
+    "tsx": "4.19.2",
     "typescript": "5.5.4"
   }
 }

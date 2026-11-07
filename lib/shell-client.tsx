@@ -2,12 +2,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ClipboardList, LayoutDashboard, Menu, Users, UserCog, X } from "lucide-react";
+import { Bell, ClipboardList, Handshake, LayoutDashboard, Menu, Users, UserCog, X } from "lucide-react";
 
-const ICONS = { work: LayoutDashboard, tasks: ClipboardList, bell: Bell, people: Users, admin: UserCog } as const;
+const ICONS = { work: LayoutDashboard, tasks: ClipboardList, handovers: Handshake, bell: Bell, people: Users, admin: UserCog } as const;
 export type NavIcon = keyof typeof ICONS;
 
-export function NavItem({ href, label, icon, count }: { href: string; label: string; icon: NavIcon; count?: number }) {
+export function NavItem({ href, label, icon, count, countLabel = "unread" }: { href: string; label: string; icon: NavIcon; count?: number; countLabel?: string }) {
   const path = usePathname();
   const active = href === "/" ? path === "/" : path === href || path.startsWith(`${href}/`);
   const Icon = ICONS[icon];
@@ -15,7 +15,7 @@ export function NavItem({ href, label, icon, count }: { href: string; label: str
     <Link href={href} aria-current={active ? "page" : undefined}>
       <Icon className="ic" aria-hidden="true" />
       {label}
-      {count ? <span className="count" aria-label={`${count} unread`}>{count > 99 ? "99+" : count}</span> : null}
+      {count ? <span className="count" aria-label={`${count} ${countLabel}`}>{count > 99 ? "99+" : count}</span> : null}
     </Link>
   );
 }

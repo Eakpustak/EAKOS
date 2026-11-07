@@ -243,6 +243,22 @@ select { appearance: none; padding-right: 2rem; cursor: pointer;
 .badge.pr-high { color: var(--warning); background: var(--warning-soft); border-color: transparent; }
 .badge.pr-urgent { color: var(--danger); background: var(--danger-soft); border-color: transparent; font-weight: 700; }
 .badge.pr-urgent::before { border-radius: 1px; transform: rotate(45deg); }
+/* Handover status: label + shape + colour, never colour alone */
+.badge.ho-pending { color: var(--warning); background: var(--warning-soft); border-color: transparent; }
+.badge.ho-clarification_requested { color: var(--info); background: var(--info-soft); border-color: transparent; }
+.badge.ho-clarification_requested::before { border-radius: 1px; transform: rotate(45deg); }
+.badge.ho-accepted { color: var(--primary); background: var(--primary-soft); border-color: transparent; }
+.badge.ho-rejected { color: var(--danger); background: var(--danger-soft); border-color: transparent; }
+.badge.ho-rejected::before { border-radius: 1px; }
+.badge.ho-completed { color: var(--success); background: var(--success-soft); border-color: transparent; }
+.badge.ho-cancelled { color: var(--text-3); text-decoration: line-through; }
+.status-cell { display: inline-grid; gap: .2rem; justify-items: start; min-width: 0; }
+@media (max-width: 40rem) { .status-cell { justify-items: end; text-align: right; } }
+.timeline .reason { margin: .3rem 0 .1rem; padding: .5rem .7rem; background: var(--surface-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+.action-block { display: grid; gap: .6rem; }
+.action-block + .action-block { padding-top: 1rem; border-top: 1px solid var(--border); }
+.action-block h3 { margin: 0; font-size: .9rem; }
+.action-block p { margin: 0; }
 .badge.head { color: var(--primary); background: var(--primary-soft); border-color: transparent; }
 .badge.ok { color: var(--success); background: var(--success-soft); border-color: transparent; }
 .badge.off { color: var(--text-3); }
@@ -268,6 +284,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--surface-muted) 70%, transp
 td a.row-link { color: var(--text); font-weight: 600; text-decoration: none; }
 td a.row-link:hover { color: var(--primary); text-decoration: underline; }
 td .sub-line { display: block; font-size: .8rem; color: var(--text-3); }
+td .sub-line.overdue { color: var(--danger); font-weight: 600; }
 .table-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: .65rem 1rem; border-top: 1px solid var(--border); font-size: .85rem; color: var(--text-2); }
 .pager { display: flex; gap: .4rem; align-items: center; }
 @media (max-width: 40rem) {

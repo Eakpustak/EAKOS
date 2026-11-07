@@ -19,7 +19,7 @@ export default async function Notifications() {
     <Shell>
       <PageHeader
         title="Notifications"
-        description="Seeing a notification is not the same as acting on it. Open the task to respond."
+        description="Seeing a notification is not the same as acting on it. Open the item to respond."
         actions={unread > 0 && (
           <form action={markAllNotificationsRead}>
             <button className="quiet" type="submit"><CheckCheck className="ic" aria-hidden="true" />Mark all as read</button>
@@ -28,14 +28,14 @@ export default async function Notifications() {
       />
       <div className="table-wrap">
         {items.length === 0 ? (
-          <EmptyState icon={BellOff} title="No notifications">You will be notified here when work is assigned to you.</EmptyState>
+          <EmptyState icon={BellOff} title="No notifications">You will be notified here when work or a handover is sent to you.</EmptyState>
         ) : (
           <ul className="list">
             {items.map((n) => (
               <li key={n.id} className={n.readAt ? "" : "unread"}>
                 <span className="ico"><Bell className="ic" aria-hidden="true" /></span>
                 <div className="grow">
-                  {n.taskId ? <Link href={`/tasks/${n.taskId}`}>{n.title}</Link> : <b>{n.title}</b>}
+                  {n.handoverId ? <Link href={`/handovers/${n.handoverId}`}>{n.title}</Link> : n.taskId ? <Link href={`/tasks/${n.taskId}`}>{n.title}</Link> : <b>{n.title}</b>}
                   <span className="sub-line muted"><time dateTime={n.createdAt.toISOString()}>{fmtDateTime(n.createdAt)}</time></span>
                 </div>
                 {!n.readAt && <span className="badge head">Unread</span>}

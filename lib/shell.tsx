@@ -8,6 +8,7 @@ import { Avatar } from "./ui";
 export async function Shell({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
   const unread = await db.notification.count({ where: { userId: user.id, readAt: null } });
+  const awaitingHandovers = await db.handover.count({ where: { receiverId: user.id, status: "PENDING" } });
   const primary = user.memberships.find((m) => m.isPrimary) ?? user.memberships[0];
 
   const sidebar = (
@@ -24,6 +25,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
         <div className="nav">
           <NavItem href="/" label="My work" icon="work" />
           <NavItem href="/tasks" label="Tasks" icon="tasks" />
+          <NavItem href="/handovers" label="Handovers" icon="handovers" count={awaitingHandovers} countLabel="awaiting your response" />
           <NavItem href="/notifications" label="Notifications" icon="bell" count={unread} />
           <NavItem href="/directory" label="Directory" icon="people" />
         </div>

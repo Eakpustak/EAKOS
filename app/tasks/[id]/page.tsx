@@ -1,4 +1,5 @@
 import { Send } from "lucide-react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Shell } from "@/lib/shell";
 import { requireUser } from "@/lib/auth";
@@ -116,6 +117,9 @@ export default async function TaskDetail({
                 <div><dt>Department</dt><dd>{task.department?.name ?? "—"}</dd></div>
                 <div><dt>Created</dt><dd className="num">{fmtDateTime(task.createdAt)}</dd></div>
               </dl>
+              {(task.creatorId === user.id || task.assigneeId === user.id) && (
+                <p style={{ margin: "1rem 0 0" }}><Link className="btn quiet sm" href={`/handovers/new?taskId=${task.id}`}>Hand over to another department</Link></p>
+              )}
             </div>
           </section>
           {task.creatorId === user.id && (

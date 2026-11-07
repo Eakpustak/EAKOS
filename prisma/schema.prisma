@@ -24,29 +24,34 @@ enum MembershipType {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  displayName  String
-  passwordHash String?
-  status       UserStatus @default(ACTIVE)
-  systemRole   SystemRole @default(MEMBER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  memberships  DepartmentMembership[]
-  tasksCreated  Task[]        @relation("TaskCreator")
-  tasksAssigned Task[]        @relation("TaskAssignee")
-  taskComments  TaskComment[]
-  taskEvents    TaskEvent[]
-  notifications Notification[]
+  id                String                 @id @default(cuid())
+  email             String                 @unique
+  displayName       String
+  passwordHash      String?
+  status            UserStatus             @default(ACTIVE)
+  systemRole        SystemRole             @default(MEMBER)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  memberships       DepartmentMembership[]
+  tasksCreated      Task[]                 @relation("TaskCreator")
+  tasksAssigned     Task[]                 @relation("TaskAssignee")
+  taskComments      TaskComment[]
+  taskEvents        TaskEvent[]
+  notifications     Notification[]
+  handoversSent     Handover[]             @relation("HandoverSender")
+  handoversReceived Handover[]             @relation("HandoverReceiver")
+  handoverEvents    HandoverEvent[]
 }
 
 model Department {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  slug        String   @unique
-  createdAt   DateTime @default(now())
-  memberships DepartmentMembership[]
-  tasks       Task[]
+  id           String                 @id @default(cuid())
+  name         String                 @unique
+  slug         String                 @unique
+  createdAt    DateTime               @default(now())
+  memberships  DepartmentMembership[]
+  tasks        Task[]
+  handoversOut Handover[]             @relation("HandoverFromDept")
+  handoversIn  Handover[]             @relation("HandoverToDept")
 }
 
 model DepartmentMembership {
@@ -92,25 +97,26 @@ enum TaskPriority {
 }
 
 model Task {
-  id           String       @id @default(cuid())
-  title        String
-  description  String?
-  status       TaskStatus   @default(TODO)
-  priority     TaskPriority @default(NORMAL)
-  dueAt        DateTime?
-  creatorId    String
-  assigneeId   String
-  departmentId String?
-  clientToken  String?      @unique
-  completedAt  DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  creator      User         @relation("TaskCreator", fields: [creatorId], references: [id])
-  assignee     User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  comments     TaskComment[]
-  events       TaskEvent[]
+  id            String         @id @default(cuid())
+  title         String
+  description   String?
+  status        TaskStatus     @default(TODO)
+  priority      TaskPriority   @default(NORMAL)
+  dueAt         DateTime?
+  creatorId     String
+  assigneeId    String
+  departmentId  String?
+  clientToken   String?        @unique
+  completedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  creator       User           @relation("TaskCreator", fields: [creatorId], references: [id])
+  assignee      User           @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  department    Department?    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  comments      TaskComment[]
+  events        TaskEvent[]
   notifications Notification[]
+  handovers     Handover[]
 
   @@index([assigneeId, status])
   @@index([creatorId])
@@ -144,16 +150,78 @@ model TaskEvent {
 }
 
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  type      String
-  title     String
-  taskId    String?
-  readAt    DateTime?
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task      Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  userId     String
+  type       String
+  title      String
+  taskId     String?
+  handoverId String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task       Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  handover   Handover? @relation(fields: [handoverId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+}
+
+enum HandoverStatus {
+  PENDING
+  CLARIFICATION_REQUESTED
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+/// A cross-department handover. Created PENDING; only the named receiver can accept,
+/// ask for clarification or reject. CHECK constraints (see migration) enforce that the
+/// departments differ and that sender and receiver are different people.
+model Handover {
+  id                String          @id @default(cuid())
+  title             String
+  context           String
+  deliverable       String
+  status            HandoverStatus  @default(PENDING)
+  fromDepartmentId  String
+  toDepartmentId    String
+  senderId          String
+  receiverId        String
+  dueAt             DateTime?
+  linkedTaskId      String?
+  clientToken       String?         @unique
+  /// When the current acknowledgement request was (re)sent; resets after a clarification answer.
+  sentAt            DateTime        @default(now())
+  respondedAt       DateTime?
+  completedAt       DateTime?
+  completionSummary String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  fromDepartment    Department      @relation("HandoverFromDept", fields: [fromDepartmentId], references: [id])
+  toDepartment      Department      @relation("HandoverToDept", fields: [toDepartmentId], references: [id])
+  sender            User            @relation("HandoverSender", fields: [senderId], references: [id])
+  receiver          User            @relation("HandoverReceiver", fields: [receiverId], references: [id])
+  linkedTask        Task?           @relation(fields: [linkedTaskId], references: [id], onDelete: SetNull)
+  events            HandoverEvent[]
+  notifications     Notification[]
+
+  @@index([receiverId, status])
+  @@index([senderId, status])
+  @@index([fromDepartmentId])
+  @@index([toDepartmentId])
+  @@index([status, sentAt])
+}
+
+model HandoverEvent {
+  id         String   @id @default(cuid())
+  handoverId String
+  actorId    String
+  type       String
+  detail     Json?
+  createdAt  DateTime @default(now())
+  handover   Handover @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([handoverId, createdAt])
 }

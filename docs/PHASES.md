@@ -58,6 +58,8 @@ Acceptance:
 
 ## Phase 3 — Handover and coordination (P0)
 
+> Status 2026-11-08: implemented; state machine and access rules unit-tested, migration applied to PostgreSQL 16, build passes. Server actions not yet run against a live Prisma engine. Reassignment and automatic escalation are not done. See `MEMORY.md` section 14.
+
 Deliverables:
 - Handover create/detail screens.
 - Sender, receiver, departments, context, due date and linked source record.
