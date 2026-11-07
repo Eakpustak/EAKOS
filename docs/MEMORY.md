@@ -5,7 +5,7 @@
 
 - Last updated: 2026-11-26
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 8 slice 3 (releases, section 33) on top of slice 2 (incidents, section 32) on top of slice 1 (technical assets, section 31) on top of Phase 7 slice 6 (renewals, section 30; completes Phase 7 as written) on top of slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 8 slice 4 (technical SOPs via the hub, section 34, completes Phase 8 as written) on top of slice 3 (releases, section 33) on top of slice 2 (incidents, section 32) on top of slice 1 (technical assets, section 31) on top of Phase 7 slice 6 (renewals, section 30; completes Phase 7 as written) on top of slice 5 (invoice/quotation register, section 29) on top of slice 4 (service requests, section 28) on top of slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -716,3 +716,26 @@ Scope: PHASES 8 "Deployment/release records". GitHub stays the source of truth f
 - `Prisma.ReleaseUncheckedUpdateManyInput` typing (same pattern as incidents); `asset!.environment` after a `fail()` that returns `never`.
 
 **Next action:** build and apply migrations, then click through: a Technology member plans "v1.4.2" for an active asset and the environment matches the asset; a second Technology member can only add notes; the creator records it as deployed and the history shows who and when; roll back needs a note; a failed record is frozen; a note containing `password: x` is refused; a Sales member and the Administrator are redirected from `/releases`. Then Phase 8 slice 4 (technical SOPs) or the Phase 9 hardening pass.
+
+## 34. Phase 8 slice 4 — Technical SOPs (2026-11-28, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+Scope: PHASES 8 "Technical SOPs". Completes Phase 8 as written. **No new module and no migration.** The Company Hub already has a "Policy / SOP" type with department audiences, draft/publish/archive, versions and search (section 15), so a separate SOP system would duplicate it (RULES 1.11, 1.12). Technical SOPs are hub items of type POLICY addressed to the Technology department.
+
+**Added**
+- `techContentSecretProblem()` in `lib/assets.ts` (pure): content whose audience is DEPARTMENTS and includes the `technology` slug has its title and body run through `findSecret`. `saveContent` (`app/hub/actions.ts`) calls it on create and edit; department slugs come from the database, not the form. Other audiences are not checked (a stricter check on HR or Sales policies would produce false positives such as "password is required").
+- Hub list: optional `?dept=<slug>` filter (slug pattern-validated, ANDed with `visibleContentWhere`, so it can never reveal anything extra); the search form and pager keep it.
+- Nav: "Technical SOPs" for Technology members, linking to `/hub?type=POLICY&dept=technology`.
+- Tests: `tests/sops.test.ts` (2). `npm test` total 202.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Who may write or publish a Technology SOP is unchanged hub policy: only the head of Technology (department-restricted content needs the head of EVERY audience department); Administrator alone grants nothing. Technology members read published SOPs; the Management head and other departments do not.
+- The secret check is a heuristic safety net, not a guarantee (it needs `api_key`, not "api key"). Existing hub items saved before this change are not rescanned. Body text is plain text, rendered escaped.
+
+**Verification (actual results)**
+- `tsx --test tests/*.test.ts`: 202/202 pass. Mutations: checking every department, and checking the title only, each fail a test. Checking scope ALL as well did NOT fail one: it is an equivalent change, because an ALL audience has no department slugs.
+- Syntax-only parse of every changed `.ts`/`.tsx` file: clean.
+- NOT run: `npm ci`, `prisma generate`, project `tsc --noEmit`, `next build`, any database or browser.
+
+**Risks to check first with a toolchain:** the `audiences: { some: { department: { slug } } }` filter inside `AND`; the `Technical SOPs` nav link is never marked active because the nav compares paths without the query string.
+
+**Next action:** build, then click through: the Technology head drafts a POLICY addressed to Technology; a body containing `password: x` is refused on create and on edit; publish; a Technology member finds it under "Technical SOPs"; a Sales member sees neither the item nor a nav link and gets nothing from `/hub?dept=technology`. After that, Phase 9 hardening (DB-backed authorization tests, restore exercise, monitoring) is the next phase and needs a machine with Postgres.

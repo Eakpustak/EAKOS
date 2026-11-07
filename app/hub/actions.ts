@@ -9,6 +9,7 @@ import {
   CONTENT_ACTION_DONE, CONTENT_TYPES, MAX_BODY, MAX_TITLE, canAuthor, canEditItem, canPublishTo,
   decideContentAction, parseAudience, safeHttpUrl, type ContentAction,
 } from "@/lib/hub";
+import { techContentSecretProblem } from "@/lib/assets";
 
 export type SaveResult = { error: string } | undefined;
 
@@ -65,8 +66,11 @@ export async function saveContent(formData: FormData): Promise<SaveResult> {
   const audience = parseAudience(d.scope, deptInput);
   if (!audience) return { error: "Choose who can see this: everyone, or at least one department." };
   if (audience.scope === "DEPARTMENTS") {
-    const found = await db.department.count({ where: { id: { in: audience.departmentIds } } });
-    if (found !== audience.departmentIds.length) return { error: "One of the chosen departments does not exist." };
+    const found = await db.department.findMany({ where: { id: { in: audience.departmentIds } }, select: { slug: true } });
+    if (found.length !== audience.departmentIds.length) return { error: "One of the chosen departments does not exist." };
+    // Technical SOPs: refuse obvious secrets in content addressed to Technology (slugs come from the DB, not the form).
+    const secret = techContentSecretProblem({ scope: audience.scope, departmentSlugs: found.map((f) => f.slug) }, d.title, body);
+    if (secret) return { error: secret };
   }
   // Authors may only address audiences they could publish to themselves.
   if (!canPublishTo(user, audience.scope, audience.departmentIds)) {

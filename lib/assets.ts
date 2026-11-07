@@ -71,3 +71,14 @@ export function validateAsset(i: AssetInput): AssetOk | { ok: false; error: stri
 }
 export const ASSET_STATUS_LABEL = { ACTIVE: "Active", RETIRED: "Retired" } as const;
 export const assetStatusLabel = (s: string) => (Object.prototype.hasOwnProperty.call(ASSET_STATUS_LABEL, s) ? ASSET_STATUS_LABEL[s as keyof typeof ASSET_STATUS_LABEL] : s);
+
+/**
+ * Technical SOPs live in the Company Hub (a Policy / SOP addressed to Technology), not in a separate module (RULES 1.11, 1.12).
+ * Content addressed to the Technology department is where credentials are most likely to be pasted, so its title and body are run
+ * through the same secret check as assets and incidents. Heuristic only. Returns an error message, or null when nothing is flagged.
+ */
+export function techContentSecretProblem(audience: { scope: string; departmentSlugs: string[] }, title: string, body: string): string | null {
+  if (audience.scope !== "DEPARTMENTS" || !audience.departmentSlugs.includes(TECHNOLOGY_SLUG)) return null;
+  const hit = findSecret(title) ?? findSecret(body);
+  return hit ? `That looks like ${hit}. Secrets are never stored here: keep them in your password manager or secrets store and write where they are kept, not what they are.` : null;
+}

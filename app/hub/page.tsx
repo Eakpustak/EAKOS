@@ -12,7 +12,7 @@ import { CONTENT_TYPES, STATUS_LABEL, TYPE_LABEL_PLURAL, canAuthor, visibleConte
 export const dynamic = "force-dynamic";
 const PAGE = 25;
 
-type SP = { type?: string; status?: string; q?: string; page?: string; error?: string; ok?: string };
+type SP = { type?: string; dept?: string; status?: string; q?: string; page?: string; error?: string; ok?: string };
 
 export default async function Hub({ searchParams }: { searchParams: SP }) {
   const user = await requireUser();
@@ -22,10 +22,13 @@ export default async function Hub({ searchParams }: { searchParams: SP }) {
   // visibleContentWhere never returns drafts to anyone else; the filter is a convenience, not security.
   const status = ["published", "draft", "archived", "all"].includes(searchParams.status ?? "") ? searchParams.status! : "published";
   const q = (searchParams.q ?? "").trim().slice(0, 100);
+  // Convenience filter by audience department slug. It is ANDed with visibleContentWhere, so it can never show anything extra.
+  const dept = /^[a-z0-9-]{1,60}$/.test(searchParams.dept ?? "") ? searchParams.dept! : "";
   const page = Math.max(1, Number.parseInt(searchParams.page ?? "1", 10) || 1);
 
   const and: Prisma.ContentItemWhereInput[] = [visibleContentWhere(user)];
   if (type) and.push({ type: type as (typeof CONTENT_TYPES)[number] });
+  if (dept) and.push({ audiences: { some: { department: { slug: dept } } } });
   if (status !== "all") and.push({ status: status.toUpperCase() as "PUBLISHED" | "DRAFT" | "ARCHIVED" });
   if (q) and.push({ OR: [{ title: { contains: q, mode: "insensitive" } }, { body: { contains: q, mode: "insensitive" } }] });
   const where: Prisma.ContentItemWhereInput = { AND: and };
@@ -46,7 +49,7 @@ export default async function Hub({ searchParams }: { searchParams: SP }) {
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const qs = (over: Partial<SP>) => {
     const p = new URLSearchParams();
-    const m = { type, status: status === "published" ? "" : status, q, page: "1", ...over };
+    const m = { type, dept, status: status === "published" ? "" : status, q, page: "1", ...over };
     for (const [k, v] of Object.entries(m)) if (v) p.set(k, String(v));
     const s = p.toString();
     return s ? `/hub?${s}` : "/hub";
@@ -81,6 +84,7 @@ export default async function Hub({ searchParams }: { searchParams: SP }) {
         )}
         <form action="/hub" method="get" role="search" style={{ display: "flex", gap: ".4rem", marginLeft: "auto" }}>
           {type && <input type="hidden" name="type" value={type} />}
+          {dept && <input type="hidden" name="dept" value={dept} />}
           {status !== "published" && <input type="hidden" name="status" value={status} />}
           <input name="q" defaultValue={q} placeholder="Search the hub" aria-label="Search the hub" maxLength={100} />
           <button type="submit" className="quiet"><Search className="ic" aria-hidden="true" />Search</button>
