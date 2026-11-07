@@ -69,6 +69,7 @@ model User {
   expensesDecided   Expense[]              @relation("ExpenseDecider")
   expensesPaid      Expense[]              @relation("ExpensePayer")
   expenseEvents     ExpenseEvent[]
+  vendorsCreated    Vendor[]               @relation("VendorCreator")
 }
 
 model Department {
@@ -682,4 +683,29 @@ model ExpenseEvent {
   actor      User     @relation(fields: [actorId], references: [id])
 
   @@index([expenseId, createdAt])
+}
+
+enum VendorStatus {
+  ACTIVE
+  INACTIVE
+}
+
+/// Vendor register entry. Never deleted, only deactivated. `nameKey` makes names unique ignoring case and spacing.
+model Vendor {
+  id          String       @id @default(cuid())
+  name        String
+  nameKey     String       @unique
+  category    String
+  contactName String?
+  email       String?
+  phone       String?
+  notes       String?
+  status      VendorStatus @default(ACTIVE)
+  createdById String
+  clientToken String?      @unique
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  createdBy   User         @relation("VendorCreator", fields: [createdById], references: [id])
+
+  @@index([status, name])
 }

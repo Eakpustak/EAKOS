@@ -46,4 +46,4 @@ Before making changes:
 
 ## Current status
 
-Phase 1 foundation (Next.js + Prisma + PostgreSQL) with Docker deployment, Phase 2 tasks, Phase 3 cross-department handovers (`/handovers`), Phase 4 Company Hub (`/hub`) and Phase 5 slice 1 Sales leads (`/leads`); phases 4 to 7 are written but not yet built (Phase 7 so far: expenses at `/expenses`) (Phase 6 includes the restricted document register at `/documents`). Run `npm test` for the business-rule tests. See [`DEPLOY.md`](DEPLOY.md) to install and update on a VM, and `docs/MEMORY.md` for decisions and verification status.
+Phase 1 foundation (Next.js + Prisma + PostgreSQL) with Docker deployment, Phase 2 tasks, Phase 3 cross-department handovers (`/handovers`), Phase 4 Company Hub (`/hub`) and Phase 5 slice 1 Sales leads (`/leads`); phases 4 to 7 are written but not yet built (Phase 7 so far: expenses at `/expenses`, vendors at `/vendors`) (Phase 6 includes the restricted document register at `/documents`). Run `npm test` for the business-rule tests. See [`DEPLOY.md`](DEPLOY.md) to install and update on a VM, and `docs/MEMORY.md` for decisions and verification status.

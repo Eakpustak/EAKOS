@@ -5,7 +5,7 @@
 
 - Last updated: 2026-11-16
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 7 slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 7 slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -504,3 +504,28 @@ Scope: PHASES 7 "Expense submissions and approval" and WORKFLOWS 8. Administrati
 - NOT run: `npm ci`, `prisma generate`, `tsc --noEmit`, `next build`, `prisma migrate`, any database or browser. The `.tsx` pages and server actions have never been compiled, so type errors are possible (the `data` object in `actOnExpense` is typed `Prisma.ExpenseUncheckedUpdateManyInput`; check it first).
 
 **Next action:** build, apply all twelve migrations to a scratch PostgreSQL 16, then click through: a Technology member submits; the Technology head approves; the Finance head records payment; the submitter sees every step in the history; the submitter cannot approve; a second user opening `/expenses/<id>` is redirected; a Finance head with no other Finance head cannot submit; double-clicking approve does not double-notify.
+
+## 26. Phase 7 slice 2 — Vendor register (2026-11-20, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+Scope: PHASES 7 "Vendor register"; WORKFLOWS 7 "vendor records visible only to authorized roles". NOT in this slice: purchase requests (next, will reference vendors), assets, contracts, ratings, bank or tax details, documents, import/export.
+
+**Added**
+- Model `Vendor`, enum `VendorStatus`, migration `20261118000000_vendors`. `nameKey` is unique (NFKC, lower-case, collapsed spacing). DB CHECKs: name 2..120 chars; category in the allowlist.
+- `lib/vendors.ts` (pure rules), `app/vendors/actions.ts` (`createVendor`, `updateVendor`, `setVendorStatus`), pages `/vendors`, `/vendors/new`, `/vendors/[id]`, nav item "Vendors" (only for people who may read).
+- Tests: `tests/vendors.test.ts` (5). `npm test` total 147. Two mutations (Finance may manage; name key not normalised) each fail a test.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Read: head of Operations and head of Finance & Administration. Manage (add, edit, deactivate, reactivate): head of Operations only. Plain members, Management heads and the Administrator role: nothing. A refused write is audited as `vendor.write` / `denied`.
+- Never deleted, only deactivated. Edits are guarded by the `updatedAt` the form was loaded with, so a stale save writes nothing. Create is retry-safe via `clientToken`; a duplicate name is refused politely (checked first, then by the unique index).
+- Contact details are personal data: audit events record which fields changed, never their values.
+- Categories (Software, Hosting and domains, Hardware, Services, Facilities, Other) are placeholders, also fixed in a DB CHECK, so changing them needs a migration.
+
+**Verification (actual results)**
+- All 147 unit tests pass (`tsx`).
+- NOT run: `npm ci`, `prisma generate`, `tsc --noEmit`, `next build`, `prisma migrate`, any database or browser. Pages and actions have never been compiled.
+
+**Risks to check first with a toolchain**
+- `isUnique()` reads Prisma's `meta.target`; confirm it contains `nameKey` for a duplicate on PostgreSQL.
+- `VendorFields` receives either a stored row or query-string values; check the types compile.
+
+**Next action:** build, apply all thirteen migrations, then click through: Operations head adds "Acme Hosting"; adding "  acme   hosting " is refused; Finance head sees it read-only (no form, no write); a Technology member opening `/vendors` is redirected; saving from a stale tab is refused; deactivate then reactivate; audit rows contain field names only.
