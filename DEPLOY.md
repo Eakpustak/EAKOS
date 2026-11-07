@@ -24,7 +24,7 @@ Database migrations run automatically on container start (`prisma migrate deploy
 | Logs | `docker compose logs -f app` |
 | Status | `docker compose ps` |
 | Manual backup | `docker compose exec -T db pg_dump -U eakos eakos \| gzip > backups/manual.sql.gz` |
-| Restore | `./restore.sh backups/<file>.sql.gz` |
+| Restore | `./restore.sh backups/<db>.sql.gz [backups/documents-<stamp>.tar.gz]` |
 | Restart | `docker compose restart app` |
 
 Nightly backups land in `./backups` (newest 14 kept). Copy them off the VM (OCI Object Storage, rclone, etc.) — a backup on the same disk is not a disaster-recovery plan.
@@ -37,4 +37,4 @@ git push   # then on the VM: ./update.sh
 
 ## Employee documents (private files)
 
-Uploaded HR documents are stored in the `docdata` Docker volume (`/data/documents` in the app container), never in the web root. The nightly backup service also writes `backups/documents-*.tar.gz`. `restore.sh` restores the database only; to restore documents, stop the app and extract the archive into the volume (`docker run --rm -v eakos_docdata:/d -v $PWD/backups:/b alpine tar xzf /b/documents-<stamp>.tar.gz -C /d`).
+Uploaded HR documents are stored in the `docdata` Docker volume (`/data/documents` in the app container), never in the web root. The nightly backup service also writes `backups/documents-*.tar.gz`. `./restore.sh backups/<db>.sql.gz backups/documents-<stamp>.tar.gz` restores the database and the documents together (use files from the same night). With only the database file it restores the database and warns that documents were not restored. It always saves the current database to `backups/pre-restore-<stamp>.sql.gz` first. See `docs/ROLLOUT.md` for the pre-launch checklist and rollback table.

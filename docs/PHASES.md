@@ -194,6 +194,8 @@ Acceptance:
 
 ## Phase 9 — Hardening and rollout
 
+> Status 2026-11-29: started. Document restore added to `restore.sh`; rollout plan, rollback table and known limitations are in `docs/ROLLOUT.md` (MEMORY 35). Security review, DB-backed access tests, restore exercise, monitoring, accessibility and UAT are NOT done; they need Docker + Postgres.
+
 Deliverables:
 - Security review and access-control test suite.
 - Backup and restore exercise.
