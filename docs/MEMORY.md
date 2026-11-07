@@ -5,7 +5,7 @@
 
 - Last updated: 2026-11-16
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 7 slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 7 slice 3 (purchase requests, section 27) on top of slice 2 (vendor register, section 26) on top of slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -529,3 +529,32 @@ Scope: PHASES 7 "Vendor register"; WORKFLOWS 7 "vendor records visible only to a
 - `VendorFields` receives either a stored row or query-string values; check the types compile.
 
 **Next action:** build, apply all thirteen migrations, then click through: Operations head adds "Acme Hosting"; adding "  acme   hosting " is refused; Finance head sees it read-only (no form, no write); a Technology member opening `/vendors` is redirected; saving from a stale tab is refused; deactivate then reactivate; audit rows contain field names only.
+
+## 27. Phase 7 slice 3 — Purchase requests (2026-11-21, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+Scope: PHASES 7 "Purchase requests and approvals"; references the vendor register (section 26). Administrative tracking only: nothing is bought or paid by this app. NOT in this slice (rest of Phase 7): internal service requests, invoice/quotation register, renewal reminders, spending limits or budgets, quotes/attachments, link to the expense register, partial receipt, editing a submitted request.
+
+**Added**
+- Models `PurchaseRequest`, `PurchaseEvent` (append-only history), enum `PurchaseStatus`, `Notification.purchaseId`, migration `20261119000000_purchase_requests`. DB CHECKs: estimate 1..100,000,000 minor units; quantity 1..10,000; currency allowlist; title 3+ chars and non-empty justification; APPROVED/REJECTED/ORDERED/RECEIVED carry decidedAt+decidedById; decider and orderer never the requester; REJECTED carries a note; ORDERED/RECEIVED carry orderedAt, orderedById, vendorId and an order reference of 3+ chars; `receivedAt` set exactly when RECEIVED. Vendor FK is RESTRICT (vendors are never deleted).
+- `lib/purchases.ts` (pure rules), `lib/purchase-ui.tsx`, `app/purchases/actions.ts` (`submitPurchase`, `actOnPurchase`), pages `/purchases`, `/purchases/new`, `/purchases/[id]`, nav item "Purchases" (everyone), notification links, `ordered`/`received` badge colours.
+- Tests: `tests/purchases.test.ts` (11). `npm test` total 158. Mutations that each fail a test: Operations sees unapproved requests; Operations head may order their own; cancel allowed after ordering; requester may approve; inactive vendor accepted.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Chain: SUBMITTED -> APPROVED or REJECTED (head of the requester's department, else a Management head, fixed at submission as for leave and expenses; never the requester; rejecting needs a reason) -> ORDERED (Operations head only, never for their own request; must pick an ACTIVE vendor from the register and give an order reference) -> RECEIVED (the requester confirms). The requester may cancel while SUBMITTED or APPROVED, not once ordered.
+- Submission is refused if no approver exists or if there is no Operations head other than the requester, so nothing can be stuck.
+- Amount is the ESTIMATED TOTAL for the whole quantity (integer minor units + currency). No limits, budgets or cross-currency totals.
+- Visible to: the requester; the approving department's heads; and the Operations head only once the request is APPROVED/ORDERED/RECEIVED. Management heads as such, the Finance head, plain members (including Operations members) and the Administrator role see nothing (RULES 2.3, 2.7). Whether Finance should see approved purchases is an open question.
+- The requester sees only the vendor NAME; contact details stay in the restricted register (the detail page selects `vendor.name` only). The vendor list for the order form is fetched only for someone who can currently order.
+- Vendor is validated server-side (exists, ACTIVE) and the write is status-guarded (`updateMany where status = what was read`); a stale click changes nothing. Create is retry-safe via `clientToken`. Notifications are generic (no item, amount, vendor or reason). Every submit and transition writes a `PurchaseEvent` and an `AuditEvent`.
+- Cancelling an APPROVED request does not notify Operations (they lose access to it once cancelled, so a link would dead-end). They simply stop seeing it in "To order".
+
+**Verification (actual results)**
+- `tsx --test tests/*.test.ts`: 158/158 pass (147 existing + 11 new). `lib/purchases.ts` type-checks under `tsc --strict` against a stubbed `@prisma/client`. Syntax-only parse of every new/changed `.ts`/`.tsx` file: clean. Model columns vs migration columns cross-checked by script (22 + 8, nullability matches).
+- NOT run: `npm ci`, `prisma generate`, project `tsc --noEmit`, `next build`, `prisma migrate` (no PostgreSQL here, so the migration SQL and its CHECKs have not been executed), any browser or database. No npm registry access this session.
+
+**Risks to check first with a toolchain**
+- Migration SQL syntax and the CHECKs (apply all fourteen migrations in order to a scratch PostgreSQL 16, then `prisma migrate diff`).
+- `data` in `actOnPurchase` is typed `Prisma.PurchaseRequestUncheckedUpdateManyInput` (same pattern as expenses); `vendorId` is assigned from a value narrowed only by a `!`.
+- `/purchases/[id]` includes `vendor: { select: { name: true } }`; confirm no other vendor column is ever selected there.
+
+**Next action:** build, apply all fourteen migrations, then click through: a Technology member requests an item; the Technology head approves; the Operations head sees it only after approval, picks a vendor, records an order reference; the requester confirms receipt and sees only the vendor name; the requester cannot approve or order; a second user opening `/purchases/<id>` is redirected; an inactive vendor is refused; an Operations head with no other Operations head cannot submit.

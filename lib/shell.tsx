@@ -37,6 +37,7 @@ export async function Shell({ children, allowPasswordChange }: { children: React
           <NavItem href="/projects" label="Projects" icon="projects" />
           <NavItem href="/leave" label="Leave" icon="leave" />
           <NavItem href="/expenses" label="Expenses" icon="expenses" />
+          <NavItem href="/purchases" label="Purchases" icon="purchases" />
           {canViewVendors(user) && <NavItem href="/vendors" label="Vendors" icon="vendors" />}
           <NavItem href="/holidays" label="Holidays" icon="holidays" />
           {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}

@@ -70,6 +70,10 @@ model User {
   expensesPaid      Expense[]              @relation("ExpensePayer")
   expenseEvents     ExpenseEvent[]
   vendorsCreated    Vendor[]               @relation("VendorCreator")
+  purchasesRequested PurchaseRequest[]     @relation("PurchaseRequester")
+  purchasesDecided  PurchaseRequest[]      @relation("PurchaseDecider")
+  purchasesOrdered  PurchaseRequest[]      @relation("PurchaseOrderer")
+  purchaseEvents    PurchaseEvent[]
 }
 
 model Department {
@@ -85,6 +89,7 @@ model Department {
   projects     Project[]
   leaveToReview LeaveRequest[]
   expensesToReview Expense[]
+  purchasesToReview PurchaseRequest[]
 }
 
 model DepartmentMembership {
@@ -201,6 +206,7 @@ model Notification {
   leaveId    String?
   caseId     String?
   expenseId  String?
+  purchaseId String?
   readAt     DateTime?
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -212,6 +218,7 @@ model Notification {
   leave      LeaveRequest? @relation(fields: [leaveId], references: [id], onDelete: Cascade)
   case       PeopleCase?  @relation(fields: [caseId], references: [id], onDelete: Cascade)
   expense    Expense?     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  purchase   PurchaseRequest? @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -706,6 +713,70 @@ model Vendor {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   createdBy   User         @relation("VendorCreator", fields: [createdById], references: [id])
+  purchases   PurchaseRequest[]
 
   @@index([status, name])
+}
+
+enum PurchaseStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+  ORDERED
+  RECEIVED
+}
+
+/// Internal purchase request. Estimated amount is integer minor units plus a currency; never floats. Not a procurement or accounting system.
+model PurchaseRequest {
+  id                   String         @id @default(cuid())
+  requesterId          String
+  title                String
+  justification        String
+  category             String
+  quantity             Int
+  estimatedMinor       Int
+  currency             String
+  neededBy             DateTime?
+  status               PurchaseStatus @default(SUBMITTED)
+  approverDepartmentId String
+  decidedById          String?
+  decidedAt            DateTime?
+  decisionNote         String?
+  vendorId             String?
+  orderedById          String?
+  orderedAt            DateTime?
+  orderRef             String?
+  receivedAt           DateTime?
+  clientToken          String?        @unique
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  requester            User           @relation("PurchaseRequester", fields: [requesterId], references: [id])
+  decidedBy            User?          @relation("PurchaseDecider", fields: [decidedById], references: [id])
+  orderedBy            User?          @relation("PurchaseOrderer", fields: [orderedById], references: [id])
+  approverDepartment   Department     @relation(fields: [approverDepartmentId], references: [id])
+  vendor               Vendor?        @relation(fields: [vendorId], references: [id])
+  events               PurchaseEvent[]
+  notifications        Notification[]
+
+  @@index([requesterId, status])
+  @@index([approverDepartmentId, status])
+  @@index([status, createdAt])
+  @@index([vendorId])
+}
+
+/// Append-only history of a purchase request.
+model PurchaseEvent {
+  id         String          @id @default(cuid())
+  purchaseId String
+  actorId    String
+  action     String
+  fromStatus String?
+  toStatus   String
+  comment    String?
+  createdAt  DateTime        @default(now())
+  purchase   PurchaseRequest @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  actor      User            @relation(fields: [actorId], references: [id])
+
+  @@index([purchaseId, createdAt])
 }

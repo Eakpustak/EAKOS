@@ -143,6 +143,8 @@ Acceptance:
 
 ## Phase 7 — Operations and finance administration (P2)
 
+> Status 2026-11-21: slice 3 written: purchase requests and approvals (MEMORY 27), referencing the vendor register. Remaining: service requests, invoice/quotation register, renewal reminders. Nothing built or run against a database.
+
 > Status 2026-11-20: slice 2 written: vendor register (MEMORY 26). Remaining: service requests, purchase requests, invoice/quotation register, renewal reminders. Nothing built or run against a database.
 
 > Status 2026-11-19: slice 1 written: expense submission, approval and payment status (MEMORY 25). Service requests, purchase requests, vendor register, invoice/quotation register and renewal reminders are NOT done. Nothing built or run against a database.

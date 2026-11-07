@@ -449,3 +449,5 @@ details.ver .prose { margin-top: .6rem; }
 .badge.lv-rejected { color: var(--danger); background: var(--danger-soft); border-color: transparent; }
 .badge.lv-rejected::before { border-radius: 1px; }
 .badge.lv-cancelled { color: var(--text-3); text-decoration: line-through; }
+.badge.lv-ordered { color: var(--info); background: var(--info-soft); border-color: transparent; }
+.badge.lv-received { color: var(--success); background: var(--success-soft); border-color: transparent; }
