@@ -3,9 +3,9 @@
 
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
-- Last updated: 2026-11-10
+- Last updated: 2026-11-15
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 5 slice 1 — Sales leads (code written, rules unit-tested, NOT built or run; see section 16). Phase 4 (hub) is section 15, Phase 3 section 14. Phases 4 and 5 are both unbuilt: build and verify them before adding more.
+- Current milestone: Phase 5 is feature-complete as written (leads, lead-linked handover, projects, management pipeline summary; section 21). Account settings (password change, forced change of temporary passwords) added in section 21. Phase 6 slices 1-2 are sections 19-20. NOTHING has run against a live Prisma engine or database; build and click through before adding more.
 
 ## 1. Product identity
 
@@ -363,3 +363,36 @@ Scope: WORKFLOWS 3 steps 8-11 (project and delivery tasks, progress, confirmed c
 **Not done / gaps**: weekend/holiday-aware day counts, bulk import of a holiday list, optional/restricted holidays, team leave calendar view, onboarding/offboarding checklists, restricted document register (needs private file storage).
 
 **Next action:** after `prisma migrate deploy`, click through: HR head adds a holiday and a duplicate date is refused; an ordinary employee sees the calendar but no add/remove forms and `/hr` redirects them; the HR overview lists someone with approved leave today.
+
+
+## 21. Phase 5 completion (management pipeline summary) + account settings (2026-11-15, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+**Phase 5 last deliverable: permission-aware management summary.** `/pipeline`, nav item "Pipeline summary".
+- `lib/pipeline.ts` (pure): `canViewPipelineSummary` (a Sales head or the Management head only; ADMIN, plain members and other heads grant nothing), `stageBreakdown`, `openLeadTotal`, `winRatePercent` (null, not 0%, when nothing closed), `sharePercent`.
+- COUNTS ONLY (RULES 1.9, 2.7): open leads, follow-ups overdue, no follow-up planned, won/lost last 30 days, leads by stage, delivery handovers from leads by status (+ unacknowledged past `HANDOVER_ACK_HOURS`), delivery projects by status. No organisation, contact, owner, title or reason is selected. Only the Sales head also gets a link to `/leads`; the Management head cannot open leads and gets none.
+- Decisions to confirm: who counts as "management" (here: Management head + Sales head); no deal values exist in the schema so there is no revenue figure; the last-30-days window is a constant.
+
+**Account settings.** `/settings`, nav item "Account settings" for everyone.
+- `User.passwordChangedAt`, `User.mustChangePassword` (migration `20261115000000_account_settings`, additive; existing rows default to false, so nobody is forced retroactively).
+- Change own name (`updateProfile`) and own password (`changePassword`). Password change requires the current password, matching confirmation and a different new one; strength rules in `lib/account.ts` (min 10 chars, max 72 BYTES because bcrypt ignores the rest, no single repeated character, small common list, not your email name or your name). Wrong current password is audited as `denied`; 5 denials in 15 minutes lock the form for that account. The write is guarded on the hash that was read (`updateMany`), so a change made elsewhere is reported, not overwritten. Passwords never go in a URL or audit row.
+- Changing a password ends every sign-in, including the current one: the session carries `authAt` (stamped at sign-in) and `requireUser` rejects any session older than `passwordChangedAt`; a session with no stamp is treated as stale once a change exists (fail closed). After the change the person is sent to `/login?notice=password-changed` (the notice text comes from a fixed list, never from the URL).
+- Temporary passwords: `createUser`, the new admin `resetUserPassword`, and the bootstrap admin all set `mustChangePassword`. `requireUser()` sends such a user to `/settings?required=1`; only the settings page/actions pass `allowPasswordChange`, so a temporary password opens nothing else. `Shell` takes `allowPasswordChange` for the same reason (otherwise settings would redirect to itself).
+- Admin reset (`/admin/users` > "Reset password"): there is no email, so this is the forgot-password path. It sets a temporary password, ends the person's sign-ins, forces a change, audits `user.password_reset`. An admin changes their own password in settings, not here. An admin who resets a password knows a working password until the person changes it; this is inherent in admin-set passwords and is why the reset is audited.
+- `createUser` and reset now also apply the strength rules (before, a 200-character temporary password was accepted and silently truncated by bcrypt at 72 bytes).
+- Tests: `tests/account.test.ts` (7), `tests/pipeline.test.ts` (7). `npm test` total 112. Mutations that each fail a test: unstamped session treated as fresh, byte limit measured as characters, any Sales member sees the summary, no lockout.
+
+**Verification (actual results)**
+- All 112 unit tests pass (run with Node's native TypeScript stripping on a copy, because this sandbox has no `node_modules` and no registry access; `tsx` itself was not run).
+- Parse check (Node's TS parser, strip-only) clean for every changed `.ts` file. The `.tsx` files (`app/settings/page.tsx`, `app/pipeline/page.tsx`, `app/login/page.tsx`, `app/admin/users/page.tsx`, `lib/shell.tsx`, `lib/shell-client.tsx`) could NOT be parsed or type-checked here.
+- NOT run: `npm ci`, `prisma generate`, `tsc --noEmit`, `next build`, `prisma migrate diff/deploy`, any browser or database.
+
+**Risks to check first with a toolchain**
+- `db.project.groupBy` with `where: { handover: { is: { leadId: { not: null } } } }` and the other `groupBy` result types on `/pipeline`.
+- The `<details>` "Reset password" markup on `/admin/users` has no dedicated CSS; check it on mobile cards.
+- `/login` reads `?notice=` in `useEffect` (no Suspense needed); confirm it shows after a password change.
+- The stale-session redirect lands on `/login` with the old cookie still present; confirm signing in again replaces it and nothing loops.
+
+**Not done / gaps**
+- Login throttling (the throttle exists only on the password-change form; a login lockout needs a decision on lock-out denial of service), "forgot password" by email (no email provider), two-factor sign-in, a list of active sessions, notification preferences, timezone preference, avatar. Pipeline: trends over time, per-owner breakdown (would name people, needs a decision), export.
+
+**Next action:** on a machine with npm + Postgres: `npm ci && npm run lint && npm run build && npx prisma migrate deploy && npm test`, then click through: new person signs in with a temporary password and is held on `/settings` until they change it; after the change they must sign in again; an old tab from before the change is bounced to login; five wrong current passwords lock the form; the Management head sees `/pipeline` but gets redirected from `/leads/<id>`; a Tech head and an intern are redirected from `/pipeline`.

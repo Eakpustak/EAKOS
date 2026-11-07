@@ -40,6 +40,8 @@ Acceptance:
 - HR-sensitive fields are not exposed to ordinary users or generic administrators.
 - Authorization tests cover cross-department and cross-user access.
 
+> Status 2026-11-15: account settings added (change own password and name; temporary passwords must be replaced; admin password reset; password change ends all sign-ins). See `MEMORY.md` section 21.
+
 ## Phase 2 — Tasks and personal workspace (P0)
 
 Deliverables:
@@ -96,6 +98,8 @@ Acceptance:
 ## Phase 5 — Sales CRM and projects (P1)
 
 > Status 2026-11-10: slice 1 written (leads, ownership, pipeline, timeline, follow-ups; 19 rule tests). Projects, milestones and the lead-linked Sales to Technology handover are NOT done. Nothing built or run against a database. See `MEMORY.md` section 16.
+
+> Status 2026-11-15: COMPLETE as written. The last deliverable, permission-aware management summaries, is `/pipeline` (counts only; Sales head and Management head; MEMORY 21). Everything in this phase is built and unit-tested but has never run against a live Prisma engine or database.
 
 > Status 2026-11-12: slice 2 (lead-linked delivery handover, MEMORY 17) and slice 3 (projects, members, milestones, project tasks, project from an accepted handover, MEMORY 18) are written, built and unit-tested. Not yet run against a live Prisma engine. Management pipeline summaries are NOT done.
 

@@ -5,10 +5,11 @@ import SignOutButton from "./signout";
 import { NavItem, ShellFrame } from "./shell-client";
 import { isSalesMember } from "./leads";
 import { isHrHead } from "./leave";
+import { canViewPipelineSummary } from "./pipeline";
 import { Avatar } from "./ui";
 
-export async function Shell({ children }: { children: React.ReactNode }) {
-  const user = await requireUser();
+export async function Shell({ children, allowPasswordChange }: { children: React.ReactNode; allowPasswordChange?: boolean }) {
+  const user = await requireUser({ allowPasswordChange });
   const unread = await db.notification.count({ where: { userId: user.id, readAt: null } });
   const awaitingHandovers = await db.handover.count({ where: { receiverId: user.id, status: "PENDING" } });
   const primary = user.memberships.find((m) => m.isPrimary) ?? user.memberships[0];
@@ -34,8 +35,10 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}
           <NavItem href="/hub" label="Company hub" icon="hub" />
           {isSalesMember(user) && <NavItem href="/leads" label="Leads" icon="leads" />}
+          {canViewPipelineSummary(user) && <NavItem href="/pipeline" label="Pipeline summary" icon="pipeline" />}
           <NavItem href="/notifications" label="Notifications" icon="bell" count={unread} />
           <NavItem href="/directory" label="Directory" icon="people" />
+          <NavItem href="/settings" label="Account settings" icon="settings" />
         </div>
       </nav>
       {user.systemRole === "ADMIN" && (

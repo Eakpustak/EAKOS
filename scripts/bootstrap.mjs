@@ -23,7 +23,7 @@ if ((await db.user.count()) === 0) {
     await db.user.create({
       data: {
         email, displayName: process.env.ADMIN_NAME || "Administrator",
-        passwordHash: await bcrypt.hash(password, 12), systemRole: "ADMIN",
+        passwordHash: await bcrypt.hash(password, 12), systemRole: "ADMIN", mustChangePassword: true,
         memberships: { create: { departmentId: mgmt.id, type: "HEAD", isPrimary: true } },
       },
     });

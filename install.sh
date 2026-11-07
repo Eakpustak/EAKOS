@@ -62,7 +62,7 @@ sed -i '/^ADMIN_PASSWORD=/d' .env
 say "Done"
 echo "URL:   https://$DOMAIN"
 echo "Admin: $ADMIN_EMAIL"
-[ -n "${NEW_ADMIN_PASSWORD:-}" ] && echo "Password (shown once, change it after login): $NEW_ADMIN_PASSWORD"
+[ -n "${NEW_ADMIN_PASSWORD:-}" ] && echo "Password (shown once; you must change it at first sign-in): $NEW_ADMIN_PASSWORD"
 echo
 echo "Remember: in the OCI console, allow ingress TCP 80 and 443 in the subnet's Security List / NSG."
 echo "Update later with: ./update.sh"

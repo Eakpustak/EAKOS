@@ -1,12 +1,17 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
+import { loginNotice } from "@/lib/account";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 
 export default function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [show, setShow] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    setNotice(loginNotice(new URLSearchParams(window.location.search).get("notice")));
+  }, []);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -45,6 +50,9 @@ export default function LoginPage() {
           <h1>Sign in</h1>
           <p className="sub">Use the account your administrator created for you.</p>
           <form onSubmit={onSubmit} noValidate={false}>
+            {notice && !error && (
+              <div className="alert ok" role="status"><CheckCircle2 className="ic" aria-hidden="true" /><span>{notice}</span></div>
+            )}
             {error && (
               <div className="alert err" role="alert"><AlertCircle className="ic" aria-hidden="true" /><span>{error}</span></div>
             )}

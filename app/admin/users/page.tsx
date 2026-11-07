@@ -5,14 +5,14 @@ import { db } from "@/lib/db";
 import { ConfirmSubmit } from "@/lib/confirm";
 import { Flash } from "@/lib/task-ui";
 import { Field, PageHeader, Person } from "@/lib/ui";
-import { createUser, setUserStatus } from "./actions";
+import { createUser, resetUserPassword, setUserStatus } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 type Params = { error?: string; ok?: string; email?: string; displayName?: string; departmentId?: string };
 
 export default async function ManageUsers({ searchParams }: { searchParams: Params }) {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const [users, departments] = await Promise.all([
     db.user.findMany({ orderBy: { createdAt: "asc" }, select: { id: true, displayName: true, email: true, status: true, systemRole: true } }),
     db.department.findMany({ orderBy: { name: "asc" } }),
@@ -38,7 +38,7 @@ export default async function ManageUsers({ searchParams }: { searchParams: Para
               <Field id="email" label="Email" required>
                 <input id="email" name="email" type="email" defaultValue={v.email ?? ""} required />
               </Field>
-              <Field id="password" label="Temporary password" required hint="At least 10 characters. Share it securely.">
+              <Field id="password" label="Temporary password" required hint="At least 10 characters. Share it securely. They must replace it when they first sign in.">
                 <input id="password" name="password" type="text" minLength={10} required autoComplete="off" />
               </Field>
               <Field id="departmentId" label="Primary department" required>
@@ -76,6 +76,17 @@ export default async function ManageUsers({ searchParams }: { searchParams: Para
                             confirmLabel="Deactivate" />
                         ) : <button className="quiet sm" type="submit">Reactivate</button>}
                       </form>
+                      {u.id !== admin.id && (
+                        <details style={{ marginTop: ".5rem" }}>
+                          <summary>Reset password</summary>
+                          <form action={resetUserPassword} style={{ marginTop: ".5rem" }}>
+                            <input type="hidden" name="id" value={u.id} />
+                            <label className="sr-only" htmlFor={`pw-${u.id}`}>Temporary password for {u.displayName}</label>
+                            <input id={`pw-${u.id}`} name="password" type="text" minLength={10} maxLength={72} required autoComplete="off" placeholder="New temporary password" />
+                            <button className="quiet sm" type="submit">Set password</button>
+                          </form>
+                        </details>
+                      )}
                     </td>
                   </tr>
                 ))}

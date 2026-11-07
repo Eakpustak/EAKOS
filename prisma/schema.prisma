@@ -28,6 +28,10 @@ model User {
   email             String                 @unique
   displayName       String
   passwordHash      String?
+  /// Set whenever the password changes; any sign-in that began earlier is treated as signed out.
+  passwordChangedAt DateTime?
+  /// True for a temporary password (new person, admin reset, bootstrap admin) until they choose their own.
+  mustChangePassword Boolean              @default(false)
   status            UserStatus             @default(ACTIVE)
   systemRole        SystemRole             @default(MEMBER)
   createdAt         DateTime               @default(now())

@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { validatePassword } from "@/lib/account";
 
 /** Redirect back with a message. Never call inside try/catch (redirect throws). */
 function back(kind: "error" | "ok", msg: string, keep?: Record<string, string>): never {
@@ -35,6 +36,8 @@ export async function createUser(formData: FormData) {
   const parsed = createSchema.safeParse(raw);
   if (!parsed.success) back("error", parsed.error.issues[0].message, keep);
   const d = parsed.data;
+  const weak = validatePassword(d.password, { email: d.email, displayName: d.displayName });
+  if (weak) back("error", weak.replace("Password", "Temporary password"), keep);
 
   if (await db.user.findUnique({ where: { email: d.email } })) {
     back("error", "A person with that email already exists.", keep);
@@ -48,6 +51,7 @@ export async function createUser(formData: FormData) {
           email: d.email,
           displayName: d.displayName,
           passwordHash: await bcrypt.hash(d.password, 12),
+          mustChangePassword: true,
           memberships: {
             create: { departmentId: d.departmentId, type: d.isHead ? "HEAD" : "MEMBER", isPrimary: true },
           },
@@ -95,4 +99,40 @@ export async function setUserStatus(formData: FormData) {
   }
   revalidatePath("/admin/users");
   back("ok", `${existing.displayName} was ${status === "ACTIVE" ? "reactivated" : "deactivated"}.`);
+}
+
+/**
+ * Admin sets a new TEMPORARY password for someone else (there is no email, so this is the
+ * "forgot password" path). It ends all of that person's sign-ins and forces them to choose their own
+ * password at the next sign-in. Audited. An admin changes their own password in /settings instead.
+ */
+export async function resetUserPassword(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (!id) back("error", "Choose a person first.");
+  if (id === admin.id) back("error", "Change your own password in Account settings.");
+
+  const target = await db.user.findUnique({ where: { id }, select: { displayName: true, email: true } });
+  if (!target) back("error", "That person no longer exists.");
+  const weak = validatePassword(password, { email: target.email, displayName: target.displayName });
+  if (weak) back("error", weak.replace("Password", "Temporary password"));
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id },
+        data: { passwordHash, passwordChangedAt: new Date(), mustChangePassword: true },
+      });
+      await tx.auditEvent.create({
+        data: { actorUserId: admin.id, action: "user.password_reset", resourceType: "user", resourceId: id, outcome: "success" },
+      });
+    });
+  } catch (e) {
+    console.error("resetUserPassword failed", e);
+    back("error", "The password could not be reset. Nothing was changed.");
+  }
+  revalidatePath("/admin/users");
+  back("ok", `A temporary password was set for ${target.displayName}. Share it privately; they must choose a new one when they sign in.`);
 }
