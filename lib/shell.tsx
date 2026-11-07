@@ -6,12 +6,14 @@ import { NavItem, ShellFrame } from "./shell-client";
 import { isSalesMember } from "./leads";
 import { isHrHead } from "./leave";
 import { canViewPipelineSummary } from "./pipeline";
+import { canManageCases } from "./checklists";
 import { Avatar } from "./ui";
 
 export async function Shell({ children, allowPasswordChange }: { children: React.ReactNode; allowPasswordChange?: boolean }) {
   const user = await requireUser({ allowPasswordChange });
   const unread = await db.notification.count({ where: { userId: user.id, readAt: null } });
   const awaitingHandovers = await db.handover.count({ where: { receiverId: user.id, status: "PENDING" } });
+  const openCaseItems = await db.caseItem.count({ where: { ownerId: user.id, status: "OPEN", case: { status: "OPEN", subjectId: { not: user.id } } } });
   const primary = user.memberships.find((m) => m.isPrimary) ?? user.memberships[0];
 
   const sidebar = (
@@ -33,6 +35,7 @@ export async function Shell({ children, allowPasswordChange }: { children: React
           <NavItem href="/leave" label="Leave" icon="leave" />
           <NavItem href="/holidays" label="Holidays" icon="holidays" />
           {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}
+          {(canManageCases(user) || openCaseItems > 0) && <NavItem href="/checklists" label="Checklists" icon="checklists" count={openCaseItems} countLabel="assigned to you" />}
           <NavItem href="/hub" label="Company hub" icon="hub" />
           {isSalesMember(user) && <NavItem href="/leads" label="Leads" icon="leads" />}
           {canViewPipelineSummary(user) && <NavItem href="/pipeline" label="Pipeline summary" icon="pipeline" />}

@@ -58,6 +58,11 @@ model User {
   leaveRequests     LeaveRequest[]         @relation("LeaveRequester")
   leaveDecided      LeaveRequest[]         @relation("LeaveDecider")
   holidaysCreated   Holiday[]
+  casesAbout        PeopleCase[]           @relation("CaseSubject")
+  casesOpened       PeopleCase[]           @relation("CaseCreator")
+  casesClosed       PeopleCase[]           @relation("CaseCloser")
+  caseItemsOwned    CaseItem[]             @relation("CaseItemOwner")
+  caseItemsDone     CaseItem[]             @relation("CaseItemDoneBy")
 }
 
 model Department {
@@ -186,6 +191,7 @@ model Notification {
   leadId     String?
   projectId  String?
   leaveId    String?
+  caseId     String?
   readAt     DateTime?
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -195,6 +201,7 @@ model Notification {
   lead       Lead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
   project    Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   leave      LeaveRequest? @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+  case       PeopleCase?  @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -515,4 +522,70 @@ model Holiday {
   createdById String
   createdAt   DateTime @default(now())
   createdBy   User     @relation(fields: [createdById], references: [id])
+}
+
+enum CaseType {
+  ONBOARDING
+  OFFBOARDING
+}
+
+enum CaseStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
+enum CaseItemStatus {
+  OPEN
+  DONE
+}
+
+/// Onboarding or offboarding checklist for one person (Phase 6 slice 3). Only the HR head manages it; item
+/// owners see their own items; the subject never sees it. `openKey` is "<subjectId>:<type>" while OPEN and
+/// NULL once closed, so its unique index allows only one open case per person and type.
+/// CHECKs in the migration: creator <> subject; closed states carry closedAt+closedById; openKey set exactly
+/// while OPEN; CANCELLED carries a note.
+model PeopleCase {
+  id            String         @id @default(cuid())
+  type          CaseType
+  subjectId     String
+  createdById   String
+  /// Start date (onboarding) or last working day (offboarding). Date-only (midnight UTC).
+  effectiveDate DateTime
+  status        CaseStatus     @default(OPEN)
+  openKey       String?        @unique
+  closeNote     String?
+  closedAt      DateTime?
+  closedById    String?
+  clientToken   String?        @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subject       User           @relation("CaseSubject", fields: [subjectId], references: [id])
+  createdBy     User           @relation("CaseCreator", fields: [createdById], references: [id])
+  closedBy      User?          @relation("CaseCloser", fields: [closedById], references: [id])
+  items         CaseItem[]
+  notifications Notification[]
+
+  @@index([status, createdAt])
+  @@index([subjectId])
+}
+
+model CaseItem {
+  id        String         @id @default(cuid())
+  caseId    String
+  title     String
+  ownerId   String
+  dueAt     DateTime?
+  status    CaseItemStatus @default(OPEN)
+  doneAt    DateTime?
+  doneById  String?
+  position  Int            @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  case      PeopleCase     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  owner     User           @relation("CaseItemOwner", fields: [ownerId], references: [id])
+  doneBy    User?          @relation("CaseItemDoneBy", fields: [doneById], references: [id])
+
+  @@index([ownerId, status])
+  @@index([caseId])
 }

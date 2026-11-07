@@ -3,9 +3,9 @@
 
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
-- Last updated: 2026-11-15
+- Last updated: 2026-11-16
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 5 is feature-complete as written (leads, lead-linked handover, projects, management pipeline summary; section 21). Account settings (password change, forced change of temporary passwords) added in section 21. Phase 6 slices 1-2 are sections 19-20. NOTHING has run against a live Prisma engine or database; build and click through before adding more.
+- Current milestone: Phase 6 slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -396,3 +396,37 @@ Scope: WORKFLOWS 3 steps 8-11 (project and delivery tasks, progress, confirmed c
 - Login throttling (the throttle exists only on the password-change form; a login lockout needs a decision on lock-out denial of service), "forgot password" by email (no email provider), two-factor sign-in, a list of active sessions, notification preferences, timezone preference, avatar. Pipeline: trends over time, per-owner breakdown (would name people, needs a decision), export.
 
 **Next action:** on a machine with npm + Postgres: `npm ci && npm run lint && npm run build && npx prisma migrate deploy && npm test`, then click through: new person signs in with a temporary password and is held on `/settings` until they change it; after the change they must sign in again; an old tab from before the change is bounced to login; five wrong current passwords lock the form; the Management head sees `/pipeline` but gets redirected from `/leads/<id>`; a Tech head and an intern are redirected from `/pipeline`.
+
+
+## 22. Phase 6 slice 3 — Onboarding / offboarding checklists (2026-11-16, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+Scope: PHASES 6 "Onboarding/offboarding checklists" and WORKFLOWS 6 (assign items to HR, manager, Technology or Operations; record completion and the responsible person). NOT in this slice: the restricted document register (needs private file storage), an HR dashboard widget for checklists, reminders for overdue steps (no scheduler), checklist templates editable in the UI.
+
+**Added**
+- Models `PeopleCase`, `CaseItem`; enums `CaseType`, `CaseStatus`, `CaseItemStatus`; `Notification.caseId`; migration `20261115010000_checklists`. DB CHECKs: creator <> subject; closed states carry closedAt+closedById; `openKey` set exactly while OPEN (a unique index on it gives one open case per person and type); CANCELLED carries a note; item DONE carries doneAt+doneById; non-empty title.
+- `lib/checklists.ts` (pure rules + templates), `app/checklists/actions.ts` (`createCase`, `markItem`, `reassignItem`, `addItem`, `closeCase`), pages `/checklists`, `/checklists/new`, `/checklists/[id]`, nav item "Checklists" (HR head, or anyone with an open step; badge = steps assigned to you), notification links.
+- Tests: `tests/checklists.test.ts` (11). `npm test` total 123. Five mutations (subject may view; owner may reopen; complete ignores open steps; any HR member manages; owner sees every step) each fail a test.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Only the HR head (head of `human-resources`) opens, reassigns, adds steps, reopens, completes or cancels. Admin role and plain HR membership grant nothing (RULES 2.3, 2.7).
+- Template steps are placeholders in `lib/checklists.ts` (6 onboarding, 7 offboarding). Default owner per step: HR -> the HR head who opened it; MANAGER -> head of one of the person's own departments; TECHNOLOGY / OPERATIONS -> the head of those departments (slugs `technology`, `operations`). If nobody qualifies, the HR head owns it, so no step is ever unowned. Owners come from stored memberships, never the form.
+- Visibility: HR head sees everything. A step owner can open the case but sees ONLY their own steps. The person the case is about never owns a step and cannot open their own case (an offboarding is confidential until HR says otherwise). Missing and forbidden IDs get the same redirect.
+- A step is marked done by its owner or the HR head; reopened by the HR head only. A case is completed only by the HR head and only when every step is done; cancelling needs a reason and can happen with open steps. Closed cases are frozen. Nothing completes automatically.
+- The Workspace account is NEVER deactivated by a checklist. The last offboarding step only asks an administrator to do it (Admin has no checklist power, so this is a manual hand-off; a notification to administrators is not built).
+- Date: start date (onboarding) or last working day (offboarding), from 30 days back to one year ahead; every template step is due on that date. Notifications are generic ("A checklist item was assigned to you"): no name, type or step title. Every create, step change and close is an audit event.
+- One open case per person and type; the person must be active and not the HR head opening it.
+
+**Verification (actual results)**
+- All 123 unit tests pass (run with Node native TypeScript stripping on a copy; `tsx` itself not run). `lib/checklists.ts`, `app/checklists/actions.ts` and the test file parse cleanly with Node's TypeScript parser.
+- NOT run: `npm ci`, `prisma generate`, `tsc --noEmit`, `next build`, `prisma migrate diff/deploy`, any browser or database. This sandbox had no PostgreSQL, so the new migration SQL has not even been applied to a scratch database. The `.tsx` pages could not be parsed or type-checked.
+
+**Risks to check first with a toolchain**
+- Migration SQL syntax and the four CHECKs (apply all ten migrations in order to a scratch PostgreSQL 16; then `prisma migrate diff`).
+- `visibleCaseWhere` / the `items: { some }` filter and the `createCase` heads query with `OR` of a relation filter and `departmentId in`.
+- Cancel form: `ConfirmSubmit`'s dialog button submits a form whose textarea is `required`; check the browser's validation message is reachable while the dialog is open (the server validates anyway).
+- Typing of `fail()` arrow helpers (copied from leave actions) with the `!` assertions I added in `createCase`.
+
+**Not done / gaps**
+- Restricted employee document register, overdue reminders, editing templates in the UI, a checklist widget on `/hr`, step due-date edits, step removal, notifying administrators when the "deactivate account" step is reached, DB-backed authorization tests.
+
+**Next action:** build and apply migrations, then click through: HR head opens an onboarding checklist for a Sales intern; the Technology head sees only the two Technology steps; the intern cannot open `/checklists/<id>`; a second open onboarding for the same person is refused; completing with an open step is refused; cancel without a reason is refused; a completed case cannot be changed.

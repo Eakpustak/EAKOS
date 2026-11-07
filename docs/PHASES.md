@@ -120,6 +120,8 @@ Acceptance:
 
 ## Phase 6 — HR essentials (P1)
 
+> Status 2026-11-16: slice 3 written: onboarding/offboarding checklists (MEMORY 22). The restricted document register and an HR-dashboard checklist widget are NOT done. Templates and default owners are unconfirmed.
+
 > Status 2026-11-14: slice 2 written: company holiday calendar and a read-only HR overview (MEMORY 20), on top of slice 1 leave requests (MEMORY 19). Leave types, balances and the approval chain are UNCONFIRMED assumptions. Onboarding/offboarding checklists and the restricted document register are NOT done.
 
 Deliverables:
