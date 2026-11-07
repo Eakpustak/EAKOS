@@ -120,6 +120,10 @@ Acceptance:
 
 ## Phase 6 — HR essentials (P1)
 
+> Status 2026-11-18: COMPLETE as written. Slice 5 is the restricted document register (MEMORY 24): private volume, authorized and audited downloads. Everything in this phase is written and unit-tested but has never been built or run against a database. Retention, version history and malware scanning are NOT done.
+
+> Status 2026-11-17: slice 4 written: checklist counts on the HR overview (MEMORY 23). Only the restricted document register is NOT done. Nothing built or run against a database.
+
 > Status 2026-11-16: slice 3 written: onboarding/offboarding checklists (MEMORY 22). The restricted document register and an HR-dashboard checklist widget are NOT done. Templates and default owners are unconfirmed.
 
 > Status 2026-11-14: slice 2 written: company holiday calendar and a read-only HR overview (MEMORY 20), on top of slice 1 leave requests (MEMORY 19). Leave types, balances and the approval chain are UNCONFIRMED assumptions. Onboarding/offboarding checklists and the restricted document register are NOT done.

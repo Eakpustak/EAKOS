@@ -34,3 +34,7 @@ Nightly backups land in `./backups` (newest 14 kept). Copy them off the VM (OCI 
 npx prisma migrate dev --name describe_change   # locally, commit prisma/migrations/*
 git push   # then on the VM: ./update.sh
 ```
+
+## Employee documents (private files)
+
+Uploaded HR documents are stored in the `docdata` Docker volume (`/data/documents` in the app container), never in the web root. The nightly backup service also writes `backups/documents-*.tar.gz`. `restore.sh` restores the database only; to restore documents, stop the app and extract the archive into the volume (`docker run --rm -v eakos_docdata:/d -v $PWD/backups:/b alpine tar xzf /b/documents-<stamp>.tar.gz -C /d`).

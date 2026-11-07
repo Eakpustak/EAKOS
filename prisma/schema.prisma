@@ -63,6 +63,8 @@ model User {
   casesClosed       PeopleCase[]           @relation("CaseCloser")
   caseItemsOwned    CaseItem[]             @relation("CaseItemOwner")
   caseItemsDone     CaseItem[]             @relation("CaseItemDoneBy")
+  documentsAbout    EmployeeDocument[]     @relation("DocumentSubject")
+  documentsAdded    EmployeeDocument[]     @relation("DocumentUploader")
 }
 
 model Department {
@@ -588,4 +590,32 @@ model CaseItem {
 
   @@index([ownerId, status])
   @@index([caseId])
+}
+
+enum DocumentKind {
+  ID_PROOF
+  CONTRACT
+  OFFER_LETTER
+  CERTIFICATE
+  OTHER
+}
+
+/// Restricted HR document. Metadata only: the bytes live in private file storage under `storageKey`.
+model EmployeeDocument {
+  id           String       @id @default(cuid())
+  subjectId    String
+  kind         DocumentKind
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  sha256       String
+  storageKey   String       @unique
+  note         String?
+  uploadedById String
+  clientToken  String?      @unique
+  createdAt    DateTime     @default(now())
+  subject      User         @relation("DocumentSubject", fields: [subjectId], references: [id])
+  uploadedBy   User         @relation("DocumentUploader", fields: [uploadedById], references: [id])
+
+  @@index([subjectId, createdAt])
 }

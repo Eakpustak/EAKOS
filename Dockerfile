@@ -16,7 +16,7 @@ RUN DATABASE_URL="postgresql://x:x@localhost:5432/x" npm run build
 FROM base AS run
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
 COPY --from=build /app /app
-RUN chmod +x deploy/entrypoint.sh && chown -R node:node /app
+RUN chmod +x deploy/entrypoint.sh && mkdir -p /data/documents && chown -R node:node /app /data
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \

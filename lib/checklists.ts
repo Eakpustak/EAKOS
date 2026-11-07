@@ -196,6 +196,23 @@ export function caseProgress(items: { status: string }[]): { done: number; total
 export function itemOverdue(i: { status: string; dueAt: Date | null }, todayStr: string): boolean {
   return i.status === "OPEN" && i.dueAt !== null && iso(i.dueAt) < todayStr;
 }
+/** Counts only (no names, no step titles) for the HR dashboard. Pass OPEN cases; closed cases never count. */
+export function checklistSummary(
+  cases: { type: string; items: { status: string; dueAt: Date | null }[] }[],
+  todayStr: string,
+): { openCases: number; openSteps: number; overdueSteps: number; casesWithOverdue: number; onboarding: number; offboarding: number } {
+  let openSteps = 0, overdueSteps = 0, casesWithOverdue = 0, onboarding = 0, offboarding = 0;
+  for (const c of cases) {
+    if (c.type === "ONBOARDING") onboarding++;
+    else if (c.type === "OFFBOARDING") offboarding++;
+    const open = c.items.filter((i) => i.status === "OPEN");
+    openSteps += open.length;
+    const late = open.filter((i) => itemOverdue(i, todayStr)).length;
+    overdueSteps += late;
+    if (late > 0) casesWithOverdue++;
+  }
+  return { openCases: cases.length, openSteps, overdueSteps, casesWithOverdue, onboarding, offboarding };
+}
 export function openKeyFor(subjectId: string, type: string): string {
   return `${subjectId}:${type}`;
 }

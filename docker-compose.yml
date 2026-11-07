@@ -32,6 +32,9 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_NAME: ${ADMIN_NAME:-Administrator}
       HANDOVER_ACK_HOURS: ${HANDOVER_ACK_HOURS:-24}
+      DOCUMENTS_DIR: /data/documents
+    volumes:
+      - docdata:/data/documents
 
   backup:
     image: postgres:16-alpine
@@ -43,15 +46,20 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./backups:/backups
+      - docdata:/documents:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
         while true; do
           f=/backups/nightly-$$(date +%Y%m%d-%H%M%S).sql.gz
           pg_dump -h db -U eakos eakos | gzip > "$$f" && echo "backup ok: $$f"
+          d=/backups/documents-$$(date +%Y%m%d-%H%M%S).tar.gz
+          tar czf "$$d" -C /documents . && echo "documents backup ok: $$d"
+          ls -1t /backups/documents-*.tar.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
           ls -1t /backups/nightly-*.sql.gz 2>/dev/null | tail -n +15 | xargs -r rm -f
           sleep 86400
         done
 
 volumes:
   pgdata:
+  docdata:

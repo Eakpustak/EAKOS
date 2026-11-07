@@ -5,7 +5,7 @@
 
 - Last updated: 2026-11-16
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 6 slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 6 slice 5 (restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -430,3 +430,53 @@ Scope: PHASES 6 "Onboarding/offboarding checklists" and WORKFLOWS 6 (assign item
 - Restricted employee document register, overdue reminders, editing templates in the UI, a checklist widget on `/hr`, step due-date edits, step removal, notifying administrators when the "deactivate account" step is reached, DB-backed authorization tests.
 
 **Next action:** build and apply migrations, then click through: HR head opens an onboarding checklist for a Sales intern; the Technology head sees only the two Technology steps; the intern cannot open `/checklists/<id>`; a second open onboarding for the same person is refused; completing with an open step is refused; cancel without a reason is refused; a completed case cannot be changed.
+
+## 23. Phase 6 slice 4 — HR dashboard checklist widget (2026-11-17, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+Scope: the "HR dashboard checklist widget" listed as not done in section 22. Counts only.
+
+**Added**
+- `checklistSummary()` in `lib/checklists.ts` (pure): open cases, open steps, overdue steps, cases with overdue steps, onboarding/offboarding split. Closed cases are never passed in.
+- `/hr` gets a "Checklists" stat tile (open checklists; open steps and overdue steps) linking to `/checklists`. The page is HR-head only, as before. Cases about the viewing HR head are excluded, matching `/checklists`. Query is capped at 200 open cases. No names, types per person or step titles are shown.
+- Test: `tests/checklists.test.ts` (+1). `npm test` total 124.
+
+**Verification (actual results)**
+- 124/124 unit tests pass with global `tsx`.
+- NOT run: `npm ci`, `prisma generate`, `tsc --noEmit`, `next build`, any database or browser (no node_modules, no registry access, no PostgreSQL). `app/hr/page.tsx` is unchecked by a type checker.
+
+**Still not done:** restricted employee document register (needs private file storage), overdue reminders, template editing in the UI, DB-backed authorization tests.
+
+**Next action:** unchanged from section 22. Build, apply all migrations, click through before adding more.
+
+## 24. Phase 6 slice 5 — Restricted employee document register (2026-11-18, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+Scope: the last open Phase 6 deliverable. Private storage plus authorized download. NOT in this slice: version history, retention timers, malware scanning, replacing a file, a document register for the HR head's own records, per-document access policies, e-signature.
+
+**Added**
+- Model `EmployeeDocument` (metadata only), enum `DocumentKind`, migration `20261116000000_employee_documents`. DB CHECKs: size 1..5 MB, mime in (pdf, png, jpeg), non-empty name, uploader <> subject. Bytes live on disk, not in Postgres.
+- `lib/documents.ts` (pure rules), `lib/document-storage.ts` (disk), `app/documents/actions.ts` (`uploadDocument`, `deleteDocument`), `app/api/documents/[id]/route.ts` (download), pages `/documents` and `/documents/new`, nav item ("Employee documents" for the HR head, "Your documents" for anyone with one).
+- Infra: named volume `docdata` mounted at `/data/documents` in `app`; `DOCUMENTS_DIR` env; Dockerfile creates `/data/documents` owned by `node`; the nightly `backup` service now also tars the volume (`backups/documents-*.tar.gz`, 14 kept); `next.config.mjs` raises the server-action body limit to 6 MB (default is 1 MB).
+- Tests: `tests/documents.test.ts` (8). `npm test` total 132. Two mutations (employee read check dropped; HR head may manage own record) each fail a test.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Read: the employee reads their own documents; the HR head reads everyone's. Admin role, Management heads, other department heads and plain HR members get nothing (RULES 2.3, 2.7; ARCHITECTURE 6).
+- Add/remove: HR head only, never for themselves. The employee cannot add or delete their own.
+- Allowlist PDF, PNG, JPEG, 5 MB. Type is taken from the first bytes; the stored extension and mime come from that, not from the browser. Name is sanitised (no path, control or bidi characters). Storage keys are generated UUIDs checked against a strict pattern before any disk access; files are created `wx` mode 0600.
+- Downloads are always `attachment`, with `nosniff`, a sandbox CSP and `no-store`. A missing document and a forbidden one both return 404. Every download (success, denied, file missing), upload and delete is an audit event; metadata is kind and size only, never the file name or note.
+- Upload order: file written first, row + audit in one transaction; if the transaction fails the file is removed. Delete: row + audit in a transaction, then the file is removed; if that unlink fails the file is orphaned (logged), the record is gone.
+- Sha-256 of each file is stored; nothing verifies it on download yet.
+
+**Verification (actual results)**
+- All 132 unit tests pass (`tsx`). Disk store checked directly: mode 0600, round trip, overwrite refused, `../../etc/passwd` refused, double remove is safe.
+- NOT run: `npm ci`, `prisma generate`, `tsc --noEmit` (only the two lib files were type-checked in isolation, with only "no @types/node" errors), `next build`, `prisma migrate`, any database, browser, Docker or compose. The `.tsx` pages, the server actions and the route handler have never been compiled.
+
+**Risks to check first with a toolchain**
+- The multipart server action: `File` handling, the 6 MB `bodySizeLimit`, and that Caddy does not cap request bodies below 5 MB.
+- `docdata` volume ownership (image directory is `node`-owned; verify a fresh volume is writable by the app and readable by the backup container).
+- `requireUser()` redirecting (not 401) inside the route handler for an expired session.
+- Migration SQL, especially the four CHECKs; `prisma migrate diff` against the schema.
+- Backup `tar` line in compose; and that restore.sh does not yet restore documents (manual: untar into the volume).
+
+**Not done / gaps:** restore of documents, version history, retention, malware scanning, hash check on download, viewing a document inline, an HR-head self-record process, DB-backed authorization tests.
+
+**Next action:** unchanged. Build, apply all eleven migrations, then click through: HR head adds a PDF for an intern; the intern downloads it; a second intern gets 404 and an audit `denied` row; the Administrator gets 404; an HTML file renamed `.pdf` is refused; a 6 MB file is refused; delete removes the file from the volume; the HR head cannot add a document for themselves.

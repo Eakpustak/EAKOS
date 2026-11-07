@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   TEMPLATES, buildItems, canManageCases, canOwnItem, canViewCase, caseProgress, caseTypeLabel, decideCase, decideItem,
-  itemOverdue, openKeyFor, resolveOwner, validateCaseInput, validateItemInput, visibleCaseWhere, visibleItems,
+  checklistSummary, itemOverdue, openKeyFor, resolveOwner, validateCaseInput, validateItemInput, visibleCaseWhere, visibleItems,
 } from "../lib/checklists";
 
 const m = (slug: string, type = "MEMBER") => ({ departmentId: `d-${slug}`, type, department: { slug } });
@@ -128,4 +128,15 @@ test("progress, overdue and keys", () => {
   assert.equal(itemOverdue({ status: "OPEN", dueAt: null }, "2026-11-11"), false);
   assert.equal(openKeyFor("u1", "ONBOARDING"), "u1:ONBOARDING");
   assert.equal(caseTypeLabel("toString"), "toString", "prototype keys are not labels");
+});
+
+test("HR dashboard summary counts open steps and overdue steps per case", () => {
+  const d = (x: string) => new Date(`${x}T00:00:00Z`);
+  assert.deepEqual(checklistSummary([], "2026-11-11"), { openCases: 0, openSteps: 0, overdueSteps: 0, casesWithOverdue: 0, onboarding: 0, offboarding: 0 });
+  const r = checklistSummary([
+    { type: "ONBOARDING", items: [{ status: "OPEN", dueAt: d("2026-11-10") }, { status: "OPEN", dueAt: d("2026-11-10") }, { status: "DONE", dueAt: d("2026-11-01") }] },
+    { type: "OFFBOARDING", items: [{ status: "OPEN", dueAt: d("2026-11-11") }, { status: "OPEN", dueAt: null }] },
+    { type: "OFFBOARDING", items: [{ status: "DONE", dueAt: d("2026-11-01") }] },
+  ], "2026-11-11");
+  assert.deepEqual(r, { openCases: 3, openSteps: 4, overdueSteps: 2, casesWithOverdue: 1, onboarding: 1, offboarding: 2 });
 });
