@@ -41,6 +41,9 @@ model User {
   handoversSent     Handover[]             @relation("HandoverSender")
   handoversReceived Handover[]             @relation("HandoverReceiver")
   handoverEvents    HandoverEvent[]
+  contentAuthored   ContentItem[]          @relation("ContentAuthor")
+  contentPublished  ContentItem[]          @relation("ContentPublisher")
+  contentVersions   ContentVersion[]
 }
 
 model Department {
@@ -52,6 +55,7 @@ model Department {
   tasks        Task[]
   handoversOut Handover[]             @relation("HandoverFromDept")
   handoversIn  Handover[]             @relation("HandoverToDept")
+  contentAudiences ContentAudience[]
 }
 
 model DepartmentMembership {
@@ -156,11 +160,13 @@ model Notification {
   title      String
   taskId     String?
   handoverId String?
+  contentId  String?
   readAt     DateTime?
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   task       Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   handover   Handover? @relation(fields: [handoverId], references: [id], onDelete: Cascade)
+  content    ContentItem? @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -224,4 +230,76 @@ model HandoverEvent {
   actor      User     @relation(fields: [actorId], references: [id])
 
   @@index([handoverId, createdAt])
+}
+
+enum ContentType {
+  ANNOUNCEMENT
+  POLICY
+  RESOURCE
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AudienceScope {
+  ALL
+  DEPARTMENTS
+}
+
+/// Company Hub item (announcement, policy/SOP or shared resource link). Body is plain text and is
+/// always rendered escaped. Never hard-deleted: unpublish/archive keeps history (RULES 7).
+/// CHECK constraints in the migration: RESOURCE needs a URL; PUBLISHED needs publisher + date.
+model ContentItem {
+  id            String            @id @default(cuid())
+  type          ContentType
+  title         String
+  body          String            @default("")
+  resourceUrl   String?
+  status        ContentStatus     @default(DRAFT)
+  audienceScope AudienceScope     @default(ALL)
+  /// Increments whenever title, body or link changes; every version is kept in ContentVersion.
+  version       Int               @default(1)
+  authorId      String
+  publisherId   String?
+  publishedAt   DateTime?
+  clientToken   String?           @unique
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  author        User              @relation("ContentAuthor", fields: [authorId], references: [id])
+  publisher     User?             @relation("ContentPublisher", fields: [publisherId], references: [id])
+  audiences     ContentAudience[]
+  versions      ContentVersion[]
+  notifications Notification[]
+
+  @@index([status, type, publishedAt])
+  @@index([authorId, status])
+}
+
+model ContentAudience {
+  id           String      @id @default(cuid())
+  contentId    String
+  departmentId String
+  content      ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  department   Department  @relation(fields: [departmentId], references: [id])
+
+  @@unique([contentId, departmentId])
+  @@index([departmentId])
+}
+
+model ContentVersion {
+  id          String      @id @default(cuid())
+  contentId   String
+  version     Int
+  title       String
+  body        String
+  resourceUrl String?
+  editedById  String
+  createdAt   DateTime    @default(now())
+  content     ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  editedBy    User        @relation(fields: [editedById], references: [id])
+
+  @@unique([contentId, version])
 }

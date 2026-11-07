@@ -46,4 +46,4 @@ Before making changes:
 
 ## Current status
 
-Phase 1 foundation (Next.js + Prisma + PostgreSQL) with Docker deployment, Phase 2 tasks, and Phase 3 cross-department handovers (`/handovers`). Run `npm test` for the business-rule tests. See [`DEPLOY.md`](DEPLOY.md) to install and update on a VM, and `docs/MEMORY.md` for decisions and verification status.
+Phase 1 foundation (Next.js + Prisma + PostgreSQL) with Docker deployment, Phase 2 tasks, Phase 3 cross-department handovers (`/handovers`), and Phase 4 Company Hub (`/hub`, written, not yet built). Run `npm test` for the business-rule tests. See [`DEPLOY.md`](DEPLOY.md) to install and update on a VM, and `docs/MEMORY.md` for decisions and verification status.

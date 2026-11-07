@@ -3,9 +3,9 @@
 
 > This file is the compact handoff note for future development sessions. Keep it factual, current and concise.
 
-- Last updated: 2026-11-08
+- Last updated: 2026-11-09
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 3 — handover and coordination (code complete; business rules unit-tested; server actions NOT exercised against a live Prisma engine, see section 14).
+- Current milestone: Phase 4 — Company Hub and CMS (code written, rules unit-tested, NOT built or run; see section 15). Phase 3 detail in section 14.
 
 ## 1. Product identity
 
@@ -186,3 +186,35 @@ Deliberately not done this slice (see Still open below): Next.js version bump, a
 - DB-backed authorization tests (access rules are unit-tested as pure functions only). Next.js CVE-2025-29927 bump still pending (see section 13); the sandbox can now reach npm, so this is a single `npm install -E next@14.2.25` plus re-verification.
 
 **Next action:** on a machine that can fetch Prisma engines: `npm ci && npx prisma migrate deploy && npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url <url> --exit-code`, then click through: create handover as user A to user B (different department), accept as B, try the action as A (must be refused), request clarification -> answer -> accept -> complete.
+
+## 15. Phase 4 — Company Hub / CMS (2026-11-09, WRITTEN, NOT BUILT)
+
+**Added**
+- Models `ContentItem`, `ContentAudience`, `ContentVersion`, enums `ContentType` (ANNOUNCEMENT/POLICY/RESOURCE), `ContentStatus` (DRAFT/PUBLISHED/ARCHIVED), `AudienceScope` (ALL/DEPARTMENTS), `Notification.contentId`; migration `20261109000000_company_hub` (hand-written). DB CHECKs: a RESOURCE needs a URL; a PUBLISHED row needs publisher + publishedAt.
+- `lib/hub.ts` (pure rules: roles, audience, read/edit/publish policy, `visibleContentWhere`, lifecycle `decideContentAction`, `safeHttpUrl`, `parseAudience`), `app/hub/actions.ts` (`saveContent`, `actOnContent`), `lib/hub-form.tsx` (client editor), `lib/hub-ui.tsx`.
+- Pages: `/hub` (type + status filters, search, pagination), `/hub/new`, `/hub/[id]` (content, publishing actions, details, version history for managers), `/hub/[id]/edit`; "Company hub" nav item; notifications link to hub items.
+- Tests: `tests/hub.test.ts`, 25 tests (`npm test` total 50).
+
+**Decisions (not yet confirmed by stakeholders; open questions 4 and 5 still apply)**
+- Authors: department heads, ADMIN, head of the `management` department (slug). Plain members only read.
+- Company-wide (audience ALL): ADMIN or management head. Department-restricted: only the head(s) of EVERY audience department. ADMIN alone grants nothing over department-restricted content (RULES 2.7). Authors can only choose audiences they could publish to.
+- Lifecycle: publish (DRAFT->PUBLISHED), unpublish (PUBLISHED->DRAFT), archive (DRAFT/PUBLISHED->ARCHIVED), restore (ARCHIVED->DRAFT). No hard delete. An author can self-publish if they hold publish rights (no separate reviewer yet).
+- Editing live content publishes a new version immediately (old version kept). Version bumps only when title/body/link changes, not on audience-only changes. Concurrent edits are refused via a posted `version` guard.
+- Body is PLAIN TEXT, rendered escaped as paragraphs (no HTML/markdown), so there is no XSS surface; rich text is deliberately deferred. Resource links must be http(s) without credentials, re-validated at render, opened with `rel="noopener noreferrer nofollow"`.
+- Reads, list and search all use the same audience rule (`visibleContentWhere` mirrors `canReadItem`); missing/forbidden/draft IDs get the same redirect. Notifications on publish go only to active audience members (not the publisher) with generic titles.
+- Editor is a client form that receives `{error}` from the server action so long bodies are not lost (bodies can exceed URL limits). Success is always a server redirect.
+
+**Verification (actual results)**
+- `tsx --test tests/*.test.ts`: 50/50 pass (25 handover + 25 hub). Hub module and tests type-check with `tsc --strict` against a stubbed `@prisma/client`.
+- Syntax-only parse of every new/changed `.ts`/`.tsx` file: no syntax errors.
+- NOT run: `npm ci`, `prisma generate`, `tsc --noEmit` (whole project), `next build`, `prisma migrate diff`/`deploy`, any browser/DB run. This session had no npm registry access. Treat the pages, actions, migration and the client form as unbuilt and unexecuted.
+
+**Known risks to check first when a toolchain is available**
+- Calling a server action from `onSubmit` and relying on its `redirect()` (hub-form.tsx catch block may show a false error if Next rejects the promise on redirect).
+- Prisma `orderBy publishedAt {sort, nulls}` and the `audiences: { some: {}, every: {...} }` filter shape in `visibleContentWhere` (unit-tested as a plain object only, never executed).
+- Migration SQL vs schema (`prisma migrate diff`).
+
+**Not done / gaps**
+- Rich text, attachments, scheduled publish, separate reviewer/approval step, audience by individual user or role, view of an old version's diff, DB-backed authorization tests, hub widget on the My work dashboard.
+
+**Next action:** on a machine with npm + Postgres: `npm ci && npm run lint && npm run build && npx prisma migrate deploy`, then click through: head of Sales drafts a Sales-only announcement; a Tech member must not see or open it (list, search, direct URL); publish; Sales intern sees it and gets a notification; edit creates v2 and history; unpublish hides it again; try a `javascript:` resource link (must be rejected).

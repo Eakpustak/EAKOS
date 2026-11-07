@@ -77,6 +77,8 @@ Acceptance:
 
 ## Phase 4 — Company Hub and CMS (P1)
 
+> Status 2026-11-09: written (announcements, policies/SOPs, resource links; draft/publish/unpublish/archive; department audiences; version history; search). Rules unit-tested (25 tests). NOT built or run against a database. Rich text, scheduled publishing and a separate approval step are not done. See `MEMORY.md` section 15.
+
 Deliverables:
 - Announcements and resources.
 - Policy/SOP content.

@@ -35,7 +35,7 @@ export default async function Notifications() {
               <li key={n.id} className={n.readAt ? "" : "unread"}>
                 <span className="ico"><Bell className="ic" aria-hidden="true" /></span>
                 <div className="grow">
-                  {n.handoverId ? <Link href={`/handovers/${n.handoverId}`}>{n.title}</Link> : n.taskId ? <Link href={`/tasks/${n.taskId}`}>{n.title}</Link> : <b>{n.title}</b>}
+                  {n.handoverId ? <Link href={`/handovers/${n.handoverId}`}>{n.title}</Link> : n.contentId ? <Link href={`/hub/${n.contentId}`}>{n.title}</Link> : n.taskId ? <Link href={`/tasks/${n.taskId}`}>{n.title}</Link> : <b>{n.title}</b>}
                   <span className="sub-line muted"><time dateTime={n.createdAt.toISOString()}>{fmtDateTime(n.createdAt)}</time></span>
                 </div>
                 {!n.readAt && <span className="badge head">Unread</span>}
