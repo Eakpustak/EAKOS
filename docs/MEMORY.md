@@ -5,7 +5,7 @@
 
 - Last updated: 2026-11-16
 - Status: Phase 3 (handovers) written and partially verified (see section 14); Phase 1 scaffolded, Phase 2 (tasks) written, UI redesigned per DESIGN.md, Phase 2 known gaps closed (admin silent failures, form-input preservation, creator-only edit); NOTHING build-verified against a real toolchain/database yet (see sections 10, 12, 13).
-- Current milestone: Phase 6 slice 5 (restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
+- Current milestone: Phase 7 slice 1 (expenses, section 25) on top of Phase 6 (complete as written; slice 5 restricted document register, section 24) on top of slice 4 (HR checklist widget, section 23) on top of slice 3 (onboarding/offboarding checklists, section 22) written on top of Phase 5 (complete as written, section 21), account settings (section 21) and Phase 6 slices 1-2 (sections 19-20). NOTHING has run against a live Prisma engine or database; build, apply migrations and click through before adding more.
 
 ## 1. Product identity
 
@@ -480,3 +480,27 @@ Scope: the last open Phase 6 deliverable. Private storage plus authorized downlo
 **Not done / gaps:** restore of documents, version history, retention, malware scanning, hash check on download, viewing a document inline, an HR-head self-record process, DB-backed authorization tests.
 
 **Next action:** unchanged. Build, apply all eleven migrations, then click through: HR head adds a PDF for an intern; the intern downloads it; a second intern gets 404 and an audit `denied` row; the Administrator gets 404; an HTML file renamed `.pdf` is refused; a 6 MB file is refused; delete removes the file from the volume; the HR head cannot add a document for themselves.
+
+## 25. Phase 7 slice 1 — Expense submission, approval and payment status (2026-11-19, WRITTEN, NOT BUILT, NOT RUN AGAINST A DB)
+
+Scope: PHASES 7 "Expense submissions and approval" and WORKFLOWS 8. Administrative tracking only: no accounting, tax, GST or payroll, and nothing moves money. NOT in this slice (rest of Phase 7): internal service requests, purchase requests and approvals, vendor register, invoice/quotation register, renewal reminders, receipt file upload, reimbursement batches, currency conversion, spending limits, reporting.
+
+**Added**
+- Models `Expense`, `ExpenseEvent` (append-only approval history), enum `ExpenseStatus`, `Notification.expenseId`, migration `20261117000000_expenses`. DB CHECKs: amount 1..100,000,000 minor units; currency in INR/USD/EUR/GBP; non-empty description, receipt reference 3+ chars; APPROVED/REJECTED/PAID carry decidedAt+decidedById; decider and payer never the submitter; REJECTED carries a note; PAID carries paidAt+paidById.
+- `lib/expenses.ts` (pure rules), `lib/expense-ui.tsx`, `app/expenses/actions.ts` (`submitExpense`, `actOnExpense`), pages `/expenses`, `/expenses/new`, `/expenses/[id]`, nav item "Expenses" (everyone), notification links, status badges.
+- Tests: `tests/expenses.test.ts` (10). `npm test` total 142. Five mutations (payer may be submitter; approver may be submitter; any head may view; status guard removed; zero amount allowed) each fail a test.
+
+**Decisions (NOT confirmed by stakeholders)**
+- Amounts are integer minor units plus a currency code, parsed from text by a strict pattern (no floats, signs, commas or exponents), at most two decimals, up to 1,000,000.00. Display uses integer arithmetic. No totals across currencies.
+- Chain: SUBMITTED -> APPROVED or REJECTED (a head of the submitter's department, else a Management head, chosen at submission as for leave; never the submitter; rejecting needs a reason) -> PAID (Finance & Administration head only, never for their own expense). The submitter may cancel only while SUBMITTED. Approved, rejected, cancelled and paid are final.
+- Submission is refused if no approver exists, or if there is no Finance head other than the submitter, so nothing can be stuck.
+- Visible to: the submitter, the approving department's heads, and the Finance head. Management heads as such, plain Finance members and the Administrator role see nothing. A `?view=` the person is not entitled to falls back to their own expenses.
+- Date: not in the future, at most 90 days back. Evidence is a typed receipt reference only (file upload is a gap).
+- Notifications are generic (no amount, category or description). Every submit and decision writes an ExpenseEvent and an AuditEvent (amount in audit metadata, no description).
+- Writes are status-guarded (`updateMany where status = what was read`); a stale click changes nothing. Retry-safe via `clientToken`.
+
+**Verification (actual results)**
+- All 142 unit tests pass (`tsx`).
+- NOT run: `npm ci`, `prisma generate`, `tsc --noEmit`, `next build`, `prisma migrate`, any database or browser. The `.tsx` pages and server actions have never been compiled, so type errors are possible (the `data` object in `actOnExpense` is typed `Prisma.ExpenseUncheckedUpdateManyInput`; check it first).
+
+**Next action:** build, apply all twelve migrations to a scratch PostgreSQL 16, then click through: a Technology member submits; the Technology head approves; the Finance head records payment; the submitter sees every step in the history; the submitter cannot approve; a second user opening `/expenses/<id>` is redirected; a Finance head with no other Finance head cannot submit; double-clicking approve does not double-notify.

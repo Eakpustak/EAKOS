@@ -35,6 +35,7 @@ export async function Shell({ children, allowPasswordChange }: { children: React
           <NavItem href="/handovers" label="Handovers" icon="handovers" count={awaitingHandovers} countLabel="awaiting your response" />
           <NavItem href="/projects" label="Projects" icon="projects" />
           <NavItem href="/leave" label="Leave" icon="leave" />
+          <NavItem href="/expenses" label="Expenses" icon="expenses" />
           <NavItem href="/holidays" label="Holidays" icon="holidays" />
           {isHrHead(user) && <NavItem href="/hr" label="HR overview" icon="hr" />}
           {(canManageCases(user) || openCaseItems > 0) && <NavItem href="/checklists" label="Checklists" icon="checklists" count={openCaseItems} countLabel="assigned to you" />}

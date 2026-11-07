@@ -65,6 +65,10 @@ model User {
   caseItemsDone     CaseItem[]             @relation("CaseItemDoneBy")
   documentsAbout    EmployeeDocument[]     @relation("DocumentSubject")
   documentsAdded    EmployeeDocument[]     @relation("DocumentUploader")
+  expensesSubmitted Expense[]              @relation("ExpenseSubmitter")
+  expensesDecided   Expense[]              @relation("ExpenseDecider")
+  expensesPaid      Expense[]              @relation("ExpensePayer")
+  expenseEvents     ExpenseEvent[]
 }
 
 model Department {
@@ -79,6 +83,7 @@ model Department {
   contentAudiences ContentAudience[]
   projects     Project[]
   leaveToReview LeaveRequest[]
+  expensesToReview Expense[]
 }
 
 model DepartmentMembership {
@@ -194,6 +199,7 @@ model Notification {
   projectId  String?
   leaveId    String?
   caseId     String?
+  expenseId  String?
   readAt     DateTime?
   createdAt  DateTime  @default(now())
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -204,6 +210,7 @@ model Notification {
   project    Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   leave      LeaveRequest? @relation(fields: [leaveId], references: [id], onDelete: Cascade)
   case       PeopleCase?  @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  expense    Expense?     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
@@ -618,4 +625,61 @@ model EmployeeDocument {
   uploadedBy   User         @relation("DocumentUploader", fields: [uploadedById], references: [id])
 
   @@index([subjectId, createdAt])
+}
+
+enum ExpenseStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+  PAID
+}
+
+/// Administrative expense record. Amounts are integer minor units plus a currency code; never floats.
+model Expense {
+  id                   String        @id @default(cuid())
+  submittedById        String
+  amountMinor          Int
+  currency             String
+  category             String
+  expenseDate          DateTime
+  description          String
+  evidenceRef          String
+  status               ExpenseStatus @default(SUBMITTED)
+  approverDepartmentId String
+  decidedById          String?
+  decidedAt            DateTime?
+  decisionNote         String?
+  paidById             String?
+  paidAt               DateTime?
+  paymentRef           String?
+  clientToken          String?       @unique
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  submittedBy          User          @relation("ExpenseSubmitter", fields: [submittedById], references: [id])
+  decidedBy            User?         @relation("ExpenseDecider", fields: [decidedById], references: [id])
+  paidBy               User?         @relation("ExpensePayer", fields: [paidById], references: [id])
+  approverDepartment   Department    @relation(fields: [approverDepartmentId], references: [id])
+  events               ExpenseEvent[]
+  notifications        Notification[]
+
+  @@index([submittedById, status])
+  @@index([approverDepartmentId, status])
+  @@index([status, createdAt])
+}
+
+/// Append-only approval history (ARCHITECTURE: ApprovalEvent).
+model ExpenseEvent {
+  id         String   @id @default(cuid())
+  expenseId  String
+  actorId    String
+  action     String
+  fromStatus String?
+  toStatus   String
+  comment    String?
+  createdAt  DateTime @default(now())
+  expense    Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([expenseId, createdAt])
 }

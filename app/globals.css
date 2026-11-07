@@ -443,6 +443,8 @@ details.ver .prose { margin-top: .6rem; }
 
 /* Leave */
 .badge.lv-pending { color: var(--warning); background: var(--warning-soft); border-color: transparent; }
+.badge.lv-submitted { color: var(--warning); background: var(--warning-soft); border-color: transparent; }
+.badge.lv-paid { color: var(--success); background: var(--success-soft); border-color: transparent; }
 .badge.lv-approved { color: var(--success); background: var(--success-soft); border-color: transparent; }
 .badge.lv-rejected { color: var(--danger); background: var(--danger-soft); border-color: transparent; }
 .badge.lv-rejected::before { border-radius: 1px; }
